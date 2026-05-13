@@ -1,4 +1,4 @@
-# pulse-board
+# backend
 
 To install dependencies:
 

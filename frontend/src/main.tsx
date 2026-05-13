@@ -1,27 +1,41 @@
-import { StrictMode } from 'react'
-import ReactDOM from 'react-dom/client'
-import { RouterProvider, createRouter } from '@tanstack/react-router'
+import { StrictMode } from "react"
+import { createRoot } from "react-dom/client"
+import { createBrowserRouter, RouterProvider } from "react-router-dom"
+import "./index.css"
+import { ThemeProvider } from "@/components/theme-provider"
+import { TooltipProvider } from "@/components/ui/tooltip"
+import { DashboardLayout } from "@/components/layout/dashboard-layout"
+import { Dashboard } from "@/pages/dashboard"
+import { CreatePoll } from "@/pages/create-poll"
+import { PollDetail } from "@/pages/poll-detail"
+import { EditPoll } from "@/pages/edit-poll"
+import { PollAnalytics } from "@/pages/poll-analytics"
+import { PollLive } from "@/pages/poll-live"
+import { PollResponses } from "@/pages/poll-responses"
+import { SettingsPage } from "@/pages/settings"
 
-// Import the generated route tree
-import { routeTree } from './routeTree.gen'
+const router = createBrowserRouter([
+  {
+    element: <DashboardLayout />,
+    children: [
+      { index: true, element: <Dashboard /> },
+      { path: "polls/create", element: <CreatePoll /> },
+      { path: "polls/:pollId", element: <PollDetail /> },
+      { path: "polls/:pollId/edit", element: <EditPoll /> },
+      { path: "polls/:pollId/analytics", element: <PollAnalytics /> },
+      { path: "polls/:pollId/live", element: <PollLive /> },
+      { path: "polls/:pollId/responses", element: <PollResponses /> },
+      { path: "settings", element: <SettingsPage /> },
+    ],
+  },
+])
 
-// Create a new router instance
-const router = createRouter({ routeTree })
-
-// Register the router instance for type safety
-declare module '@tanstack/react-router' {
-  interface Register {
-    router: typeof router
-  }
-}
-
-// Render the app
-const rootElement = document.getElementById('root')!
-if (!rootElement.innerHTML) {
-  const root = ReactDOM.createRoot(rootElement)
-  root.render(
-    <StrictMode>
-      <RouterProvider router={router} />
-    </StrictMode>,
-  )
-}
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <ThemeProvider>
+      <TooltipProvider>
+        <RouterProvider router={router} />
+      </TooltipProvider>
+    </ThemeProvider>
+  </StrictMode>
+)

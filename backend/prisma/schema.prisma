@@ -1,0 +1,180 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String  @id @default(uuid())
+  email        String  @unique
+  username     String  @unique
+  fullName     String?
+  profileImage String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  polls       Poll[]
+  submission Submission[]
+}
+
+enum PollStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+  PUBLISHED
+}
+
+model Poll {
+  id String @id @default(uuid())
+
+  createdById String
+
+  slug        String  @unique
+  title       String
+  description String?
+
+  status PollStatus @default(DRAFT)
+
+  accessCode String? @unique
+
+  isPublic                      Boolean @default(false)
+  isAnonymousSubmissionAllowed Boolean @default(false)
+
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  submission Submission[]
+  question   Question[]
+}
+
+model Question {
+  id String @id @default(uuid())
+
+  pollId String
+  order  Int
+
+  title       String
+  description String?
+
+  isOptional Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  submissionAnswer SubmissionAnswer[]
+
+  poll    Poll      @relation(fields: [pollId], references: [id])
+  option Option[]
+
+
+  @@unique([pollId, order])
+}
+
+model Option {
+  id String @id @default(uuid())
+
+  questionId String
+  order      Int
+
+  name  String
+  value String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  submissionAnswer SubmissionAnswer[]                                                                                
+
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@unique([questionId, order])
+}
+
+model Submission {
+  id String @id @default(uuid())
+
+  submittedBy String?
+
+  pollId String
+
+  feedback String?
+  rating   Int?
+
+  isCompleted Boolean @default(false)
+  isPublic Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  submissionAnswer   SubmissionAnswer[]
+  submissionMetaData SubmissionMetaData?
+
+  user User? @relation(fields: [submittedBy], references: [id])
+  poll Poll @relation(fields: [pollId], references: [id])
+
+  // make sure to generate a userId for anonymous submission to avoid multiple submission from the same user at application level.
+  @@unique([submittedBy, pollId])
+}
+
+model SubmissionAnswer {
+  id String @id @default(uuid())
+
+  submissionId String
+
+  questionId String
+  optionId   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  submission Submission @relation(fields: [submissionId], references: [id])
+  question   Question   @relation(fields: [questionId], references: [id])
+  option     Option?     @relation(fields: [optionId], references: [id])
+
+  @@unique([submissionId, questionId])
+}
+
+model SubmissionMetaData {
+  id String @id @default(uuid())
+
+  submissionId String @unique
+
+  submittedAt          DateTime
+  startedAt            DateTime
+  spendTimePerQuestion Json // { [questionId: string]: number }
+
+  deviceType String
+  browser    String
+  os         String
+  locale     String
+
+  city  String?
+  state String?
+
+  timezone String
+  referrer String?
+
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+
+  userAgent String
+  screenResolution String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  submission Submission @relation(fields: [submissionId], references: [id])
+}
