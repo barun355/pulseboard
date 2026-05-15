@@ -47,18 +47,11 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 
-  /* PulseBoard custom colors */
-  --color-pb-bg: #FAFAF7;
-  --color-pb-card: #FFFFFF;
-  --color-pb-text: #1A1A2E;
-  --color-pb-text-secondary: #6B7280;
-  --color-pb-text-tertiary: #9CA3AF;
-  --color-pb-green: #22C55E;
-  --color-pb-blue: #3B82F6;
-  --color-pb-orange: #F97316;
-  --color-pb-purple: #8B5CF6;
-  --color-pb-border: rgba(0, 0, 0, 0.06);
-  --color-pb-nested: #F9F9F7;
+  /* PulseBoard custom tokens — auto-switch via CSS vars */
+  --color-pb-nested: var(--pb-nested);
+  --color-pb-tertiary: var(--pb-tertiary);
+  --color-pb-skeleton: var(--pb-skeleton);
+  --color-pb-separator: var(--pb-separator);
 }
 
 :root {
@@ -94,6 +87,51 @@
   --sidebar-accent-foreground: #1A1A2E;
   --sidebar-border: rgba(0, 0, 0, 0.06);
   --sidebar-ring: #3B82F6;
+
+  /* PulseBoard custom tokens */
+  --pb-nested: #F9F9F7;
+  --pb-tertiary: #9CA3AF;
+  --pb-skeleton: #E5E7EB;
+  --pb-separator: #F0F0EE;
+}
+
+.dark {
+  --background: #0B0D14;
+  --foreground: #EDEEF1;
+  --card: #141620;
+  --card-foreground: #EDEEF1;
+  --popover: #141620;
+  --popover-foreground: #EDEEF1;
+  --primary: #EDEEF1;
+  --primary-foreground: #0B0D14;
+  --secondary: #1F2233;
+  --secondary-foreground: #EDEEF1;
+  --muted: #1F2233;
+  --muted-foreground: #9CA3AF;
+  --accent: #1F2233;
+  --accent-foreground: #EDEEF1;
+  --destructive: #F87171;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: #2A2D3E;
+  --ring: #60A5FA;
+  --chart-1: #60A5FA;
+  --chart-2: #4ADE80;
+  --chart-3: #FB923C;
+  --chart-4: #A78BFA;
+  --chart-5: #F472B6;
+  --sidebar: #080A10;
+  --sidebar-foreground: #EDEEF1;
+  --sidebar-primary: #60A5FA;
+  --sidebar-primary-foreground: #EDEEF1;
+  --sidebar-accent: rgba(255, 255, 255, 0.06);
+  --sidebar-accent-foreground: #EDEEF1;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #60A5FA;
+
+  --pb-nested: #1A1D2B;
+  --pb-tertiary: #6B7280;
+  --pb-skeleton: #2A2D3E;
+  --pb-separator: #1F2233;
 }
 
 @layer base {
@@ -119,20 +157,18 @@
   .shadow-mockup {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
   }
-}
-
-/* Scroll-triggered animations */
-@keyframes fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(24px);
+  .dark .shadow-ambient {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.2);
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  .dark .shadow-elevated {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 20px 40px rgba(0, 0, 0, 0.25);
+  }
+  .dark .shadow-mockup {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   }
 }
 
+/* Hero blob drift — kept as CSS infinite loop */
 @keyframes drift {
   from {
     transform: translate(0, 0) scale(1);
@@ -142,26 +178,6 @@
   }
 }
 
-@keyframes count-up-pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
-.animate-fade-in-up {
-  animation: fade-in-up 0.7s ease-out forwards;
-}
-
 .animate-drift {
   animation: drift 20s ease-in-out infinite alternate;
 }
-
-.stagger-1 { animation-delay: 0ms; }
-.stagger-2 { animation-delay: 100ms; }
-.stagger-3 { animation-delay: 200ms; }
-.stagger-4 { animation-delay: 300ms; }
-.stagger-5 { animation-delay: 400ms; }
-.stagger-6 { animation-delay: 500ms; }

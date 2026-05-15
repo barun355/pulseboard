@@ -1,79 +1,41 @@
 "use client";
 
-import { useRef, useEffect, useState, type ReactNode } from "react";
-
-function AnimateOnScroll({
-  children,
-  className = "",
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          observer.unobserve(el);
-        }
-      },
-      { threshold: 0.15 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div
-      ref={ref}
-      className={className}
-      style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : "translateY(24px)",
-        transition: "all 0.7s ease-out",
-      }}
-    >
-      {children}
-    </div>
-  );
-}
+import { Reveal, StaggerParent, StaggerChild } from "./reveal";
+import { CountUp, AnimatedBar, AnimatedBarVertical } from "./animated-mockup";
 
 export function AnalyticsShowcase() {
   return (
-    <section className="py-24 md:py-28 bg-[#FAFAF7]">
+    <section className="py-24 md:py-28 bg-background">
       <div className="mx-auto max-w-[1200px] px-6 md:px-8">
-        <div className="text-center mb-16">
-          <span className="text-[13px] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">
-            ANALYTICS
-          </span>
-          <h2 className="mt-3 text-3xl md:text-[42px] font-bold leading-[1.15] tracking-[-0.03em] text-[#1A1A2E] font-[family-name:var(--font-heading)]">
-            More Than Just Counts —{" "}
-            <span className="bg-gradient-to-r from-[#3B82F6] to-[#8B5CF6] bg-clip-text text-transparent">
-              Real Audience Intelligence
+        <Reveal>
+          <div className="text-center mb-16">
+            <span className="text-[13px] font-semibold uppercase tracking-[0.08em] text-pb-tertiary">
+              ANALYTICS
             </span>
-          </h2>
-          <p className="mt-4 text-lg text-[#6B7280] max-w-[600px] mx-auto">
-            Every response automatically captures device, location, source, and
-            engagement metadata. Zero extra questions for respondents. Maximum
-            insights for you.
-          </p>
-        </div>
+            <h2 className="mt-3 text-3xl md:text-[42px] font-bold leading-[1.15] tracking-[-0.03em] text-foreground font-[family-name:var(--font-heading)]">
+              More Than Just Counts —{" "}
+              <span className="bg-gradient-to-r from-[#3B82F6] to-[#8B5CF6] dark:from-[#60A5FA] dark:to-[#A78BFA] bg-clip-text text-transparent">
+                Real Audience Intelligence
+              </span>
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground max-w-[600px] mx-auto">
+              Every response automatically captures device, location, source, and
+              engagement metadata. Zero extra questions for respondents. Maximum
+              insights for you.
+            </p>
+          </div>
+        </Reveal>
 
-        <AnimateOnScroll>
-          <div className="rounded-[24px] border border-[rgba(0,0,0,0.06)] bg-white shadow-mockup overflow-hidden">
+        <Reveal duration={0.7}>
+          <div className="rounded-[24px] border border-border bg-card shadow-mockup overflow-hidden">
             {/* Dashboard header bar */}
-            <div className="flex items-center justify-between border-b border-[rgba(0,0,0,0.06)] px-6 py-4">
+            <div className="flex items-center justify-between border-b border-border px-6 py-4">
               <div className="flex items-center gap-3">
                 <div className="h-3 w-3 rounded-full bg-[#FF5F57]" />
                 <div className="h-3 w-3 rounded-full bg-[#FEBC2E]" />
                 <div className="h-3 w-3 rounded-full bg-[#28C840]" />
               </div>
-              <div className="text-sm font-medium text-[#6B7280]">
+              <div className="text-sm font-medium text-muted-foreground">
                 PulseBoard Analytics
               </div>
               <div className="w-16" />
@@ -83,43 +45,23 @@ export function AnalyticsShowcase() {
               {/* Row 1: Stat cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                  {
-                    label: "Total Responses",
-                    value: "1,247",
-                    change: "+12%",
-                    color: "#3B82F6",
-                  },
-                  {
-                    label: "Completion Rate",
-                    value: "89.3%",
-                    change: "+3%",
-                    color: "#22C55E",
-                  },
-                  {
-                    label: "Avg. Time Spent",
-                    value: "42s",
-                    change: "-5s",
-                    color: "#8B5CF6",
-                  },
-                  {
-                    label: "Avg. Rating",
-                    value: "4.2/5",
-                    change: "+0.3",
-                    color: "#F97316",
-                  },
+                  { label: "Total Responses", end: 1247, suffix: "", decimals: 0, separator: true, change: "+12%", color: "#3B82F6" },
+                  { label: "Completion Rate", end: 89.3, suffix: "%", decimals: 1, separator: false, change: "+3%", color: "#22C55E" },
+                  { label: "Avg. Time Spent", end: 42, suffix: "s", decimals: 0, separator: false, change: "-5s", color: "#8B5CF6" },
+                  { label: "Avg. Rating", end: 4.2, suffix: "/5", decimals: 1, separator: false, change: "+0.3", color: "#F97316" },
                 ].map((stat) => (
                   <div
                     key={stat.label}
-                    className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-[#F9F9F7] p-4 md:p-5"
+                    className="rounded-2xl border border-border bg-pb-nested p-4 md:p-5"
                   >
-                    <div className="text-xs text-[#9CA3AF] mb-1">{stat.label}</div>
+                    <div className="text-xs text-pb-tertiary mb-1">{stat.label}</div>
                     <div
                       className="text-2xl md:text-3xl font-bold tracking-tight"
                       style={{ color: stat.color }}
                     >
-                      {stat.value}
+                      <CountUp end={stat.end} suffix={stat.suffix} decimals={stat.decimals} separator={stat.separator} />
                     </div>
-                    <div className="text-xs font-medium text-[#22C55E] mt-1">
+                    <div className="text-xs font-medium text-[#22C55E] dark:text-[#4ADE80] mt-1">
                       {stat.change}
                     </div>
                   </div>
@@ -129,8 +71,8 @@ export function AnalyticsShowcase() {
               {/* Row 2: Question breakdown + Device pie */}
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 {/* Question breakdown - spans 3 */}
-                <div className="md:col-span-3 rounded-2xl border border-[rgba(0,0,0,0.06)] bg-[#F9F9F7] p-5">
-                  <div className="text-sm font-semibold text-[#1A1A2E] mb-4">
+                <div className="md:col-span-3 rounded-2xl border border-border bg-pb-nested p-5">
+                  <div className="text-sm font-semibold text-foreground mb-4">
                     Question 1: Which feature should we build next?
                   </div>
                   <div className="space-y-3">
@@ -142,33 +84,30 @@ export function AnalyticsShowcase() {
                     ].map((opt) => (
                       <div key={opt.label}>
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm text-[#1A1A2E] font-medium">
+                          <span className="text-sm text-foreground font-medium">
                             {opt.label}
                           </span>
-                          <span className="text-xs text-[#6B7280]">
+                          <span className="text-xs text-muted-foreground">
                             {opt.votes} votes ({opt.pct}%)
                           </span>
                         </div>
-                        <div className="h-3 w-full rounded-full bg-[#E5E7EB] overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-1000"
-                            style={{ width: `${opt.pct}%`, background: opt.color }}
-                          />
+                        <div className="h-3 w-full rounded-full bg-pb-skeleton overflow-hidden">
+                          <AnimatedBar percentage={opt.pct} color={opt.color} />
                         </div>
                       </div>
                     ))}
                   </div>
                   <div className="mt-3 flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#9CA3AF]">Skip rate:</span>
-                    <span className="text-[11px] font-medium text-[#6B7280]">3.2%</span>
+                    <span className="text-[11px] text-pb-tertiary">Skip rate:</span>
+                    <span className="text-[11px] font-medium text-muted-foreground">3.2%</span>
                   </div>
                 </div>
 
                 {/* Device + Source - spans 2 */}
                 <div className="md:col-span-2 space-y-4">
                   {/* Device breakdown */}
-                  <div className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-[#F9F9F7] p-5">
-                    <div className="text-sm font-semibold text-[#1A1A2E] mb-3">
+                  <div className="rounded-2xl border border-border bg-pb-nested p-5">
+                    <div className="text-sm font-semibold text-foreground mb-3">
                       Device Type
                     </div>
                     <div className="flex items-center gap-4">
@@ -183,24 +122,24 @@ export function AnalyticsShowcase() {
                       </div>
                       <div className="space-y-1.5 text-xs">
                         <div className="flex items-center gap-2">
-                          <div className="h-2.5 w-2.5 rounded-sm bg-[#3B82F6]" />
-                          <span className="text-[#6B7280]">Mobile 60%</span>
+                          <div className="h-2.5 w-2.5 rounded-sm bg-[#3B82F6] dark:bg-[#60A5FA]" />
+                          <span className="text-muted-foreground">Mobile 60%</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="h-2.5 w-2.5 rounded-sm bg-[#8B5CF6]" />
-                          <span className="text-[#6B7280]">Desktop 25%</span>
+                          <div className="h-2.5 w-2.5 rounded-sm bg-[#8B5CF6] dark:bg-[#A78BFA]" />
+                          <span className="text-muted-foreground">Desktop 25%</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="h-2.5 w-2.5 rounded-sm bg-[#22C55E]" />
-                          <span className="text-[#6B7280]">Tablet 15%</span>
+                          <div className="h-2.5 w-2.5 rounded-sm bg-[#22C55E] dark:bg-[#4ADE80]" />
+                          <span className="text-muted-foreground">Tablet 15%</span>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {/* Source breakdown */}
-                  <div className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-[#F9F9F7] p-5">
-                    <div className="text-sm font-semibold text-[#1A1A2E] mb-3">
+                  <div className="rounded-2xl border border-border bg-pb-nested p-5">
+                    <div className="text-sm font-semibold text-foreground mb-3">
                       Response Sources
                     </div>
                     <div className="space-y-2">
@@ -211,16 +150,13 @@ export function AnalyticsShowcase() {
                         { source: "LinkedIn", pct: 5, color: "#0A66C2" },
                       ].map((s) => (
                         <div key={s.source} className="flex items-center gap-2">
-                          <span className="text-[11px] text-[#6B7280] w-16 truncate">
+                          <span className="text-[11px] text-muted-foreground w-16 truncate">
                             {s.source}
                           </span>
-                          <div className="flex-1 h-2 rounded-full bg-[#E5E7EB] overflow-hidden">
-                            <div
-                              className="h-full rounded-full"
-                              style={{ width: `${s.pct}%`, background: s.color }}
-                            />
+                          <div className="flex-1 h-2 rounded-full bg-pb-skeleton overflow-hidden">
+                            <AnimatedBar percentage={s.pct} color={s.color} />
                           </div>
-                          <span className="text-[11px] font-medium text-[#1A1A2E] w-7 text-right">
+                          <span className="text-[11px] font-medium text-foreground w-7 text-right">
                             {s.pct}%
                           </span>
                         </div>
@@ -233,26 +169,27 @@ export function AnalyticsShowcase() {
               {/* Row 3: Response timeline + Feedback */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Response timeline */}
-                <div className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-[#F9F9F7] p-5">
+                <div className="rounded-2xl border border-border bg-pb-nested p-5">
                   <div className="flex items-center justify-between mb-3">
-                    <div className="text-sm font-semibold text-[#1A1A2E]">
+                    <div className="text-sm font-semibold text-foreground">
                       Response Trend
                     </div>
                     <div className="flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E] animate-pulse" />
-                      <span className="text-[11px] text-[#22C55E] font-medium">Live</span>
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E] dark:bg-[#4ADE80] animate-pulse" />
+                      <span className="text-[11px] text-[#22C55E] dark:text-[#4ADE80] font-medium">Live</span>
                     </div>
                   </div>
                   <div className="flex items-end gap-1 h-24">
                     {[20, 35, 25, 45, 60, 50, 75, 65, 80, 90, 70, 85].map((h, i) => (
-                      <div
+                      <AnimatedBarVertical
                         key={i}
-                        className="flex-1 rounded-t-sm bg-gradient-to-t from-[#3B82F6] to-[#3B82F6]/50"
-                        style={{ height: `${h}%` }}
+                        height={`${h}%`}
+                        className="flex-1 rounded-t-sm bg-gradient-to-t from-[#3B82F6] to-[#3B82F6]/50 dark:from-[#60A5FA] dark:to-[#60A5FA]/50"
+                        delay={i * 0.05}
                       />
                     ))}
                   </div>
-                  <div className="flex justify-between mt-2 text-[10px] text-[#9CA3AF]">
+                  <div className="flex justify-between mt-2 text-[10px] text-pb-tertiary">
                     <span>12 AM</span>
                     <span>6 AM</span>
                     <span>12 PM</span>
@@ -261,8 +198,8 @@ export function AnalyticsShowcase() {
                 </div>
 
                 {/* Feedback */}
-                <div className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-[#F9F9F7] p-5">
-                  <div className="text-sm font-semibold text-[#1A1A2E] mb-3">
+                <div className="rounded-2xl border border-border bg-pb-nested p-5">
+                  <div className="text-sm font-semibold text-foreground mb-3">
                     Recent Feedback
                   </div>
                   <div className="space-y-2.5">
@@ -273,14 +210,14 @@ export function AnalyticsShowcase() {
                     ].map((f, i) => (
                       <div
                         key={i}
-                        className="rounded-xl bg-white border border-[rgba(0,0,0,0.06)] px-3 py-2.5"
+                        className="rounded-xl bg-card border border-border px-3 py-2.5"
                       >
                         <div className="flex items-center gap-0.5 mb-1">
                           {Array.from({ length: 5 }).map((_, j) => (
                             <svg
                               key={j}
                               className={`h-3 w-3 ${
-                                j < f.rating ? "text-[#FBBF24]" : "text-[#E5E7EB]"
+                                j < f.rating ? "text-[#FBBF24]" : "text-pb-skeleton"
                               }`}
                               fill="currentColor"
                               viewBox="0 0 20 20"
@@ -289,7 +226,7 @@ export function AnalyticsShowcase() {
                             </svg>
                           ))}
                         </div>
-                        <p className="text-xs text-[#6B7280] leading-relaxed">{f.text}</p>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{f.text}</p>
                       </div>
                     ))}
                   </div>
@@ -297,10 +234,10 @@ export function AnalyticsShowcase() {
               </div>
             </div>
           </div>
-        </AnimateOnScroll>
+        </Reveal>
 
         {/* Callout annotations */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-5">
+        <StaggerParent stagger={0.1} className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-5">
           {[
             {
               title: "Zero Extra Questions",
@@ -315,15 +252,16 @@ export function AnalyticsShowcase() {
               desc: "Watch your dashboard update live as responses stream in. No refresh needed.",
             },
           ].map((c) => (
-            <div
-              key={c.title}
-              className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-white p-6 shadow-ambient"
-            >
-              <h4 className="text-[16px] font-semibold text-[#1A1A2E]">{c.title}</h4>
-              <p className="mt-1.5 text-sm text-[#6B7280] leading-relaxed">{c.desc}</p>
-            </div>
+            <StaggerChild key={c.title}>
+              <div
+                className="rounded-2xl border border-border bg-card p-6 shadow-ambient"
+              >
+                <h4 className="text-[16px] font-semibold text-foreground">{c.title}</h4>
+                <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{c.desc}</p>
+              </div>
+            </StaggerChild>
           ))}
-        </div>
+        </StaggerParent>
       </div>
     </section>
   );

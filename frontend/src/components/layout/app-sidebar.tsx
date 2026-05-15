@@ -116,7 +116,7 @@ export function AppSidebar() {
                       tooltip={poll.title}
                     >
                       <Link to={`/polls/${poll.id}`}>
-                        <span className="truncate">{poll.title}</span>
+                        <span className="truncate">{poll.title.slice(0, 10) + (poll.title.length > 10 ? "..." : "")}</span>
                       </Link>
                     </SidebarMenuButton>
                     <SidebarMenuBadge>

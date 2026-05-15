@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
+import { ThemeProvider } from "next-themes";
 import { Plus_Jakarta_Sans, Inter } from "next/font/google";
 import "./globals.css";
 import { CLERK_URLS } from "@/lib/constant";
@@ -99,9 +100,14 @@ export default function RootLayout({
     <ClerkProvider signInFallbackRedirectUrl={CLERK_URLS.afterSignInUrl} signUpFallbackRedirectUrl={CLERK_URLS.afterSignUpUrl} afterSignOutUrl={CLERK_URLS.afterSignOutUrl}>
       <html
         lang="en"
+        suppressHydrationWarning
         className={`${plusJakarta.variable} ${inter.variable} h-full`}
       >
-        <body className="min-h-full flex flex-col antialiased">{children}</body>
+        <body className="min-h-full flex flex-col antialiased">
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+            {children}
+          </ThemeProvider>
+        </body>
       </html>
     </ClerkProvider>
   );

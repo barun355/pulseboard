@@ -65,6 +65,12 @@ export async function getPollForSubmission(req: Request, res: Response) {
     );
   }
 
+  if (existingPoll.isPublic && !existingPoll.isAnonymousSubmissionAllowed && !auth.userId) {
+    throw ApiError.unauthorized(
+      "Please login to submit response to this poll",
+    );
+  }
+
   if (!existingPoll.isPublic) {
     if (!accessCode) {
       return ApiResponse.ok(res, "Access Code is Required", {
@@ -75,8 +81,12 @@ export async function getPollForSubmission(req: Request, res: Response) {
     }
   }
 
-  if (existingPoll.submissions.some((s) => s.submittedBy === auth.userId) && !reSubmit) {
+  const hasAlreadySubmitted = existingPoll.submissions.some((s) => s.submittedBy === auth.userId);
+  if (hasAlreadySubmitted && !reSubmit) {
     throw ApiError.badRequest("You have already submitted a response to this poll");
+  }
+  if (hasAlreadySubmitted && reSubmit && !existingPoll.isAllowedToEditAfterSubmission) {
+    throw ApiError.badRequest("Resubmission is not allowed for this poll");
   }
 
   return ApiResponse.ok(res, "Poll found", existingPoll);
@@ -139,6 +149,23 @@ export async function submitResponse(req: Request, res: Response) {
     throw ApiError.badRequest(
       "You cannot submit response to a poll that is not published",
     );
+  }
+
+  if (auth.userId) {
+    const existingSubmission = await prisma.submission.findUnique({
+      where: {
+        submittedBy_pollId: {
+          submittedBy: auth.userId,
+          pollId: pollId as string,
+        },
+      },
+    });
+
+    if (existingSubmission) {
+      if (!existingPoll.isAllowedToEditAfterSubmission) {
+        throw ApiError.badRequest("Resubmission is not allowed for this poll");
+      }
+    }
   }
 
   const isCompleted = (
