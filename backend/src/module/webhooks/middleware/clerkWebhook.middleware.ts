@@ -9,9 +9,7 @@ export default function clerkWebhookMiddleware(req: Request, res: Response, next
         throw ApiError.unauthorized("Missing X-PulseBoard-Webhook header");
     }
 
-    const decodedHeader = jwt.verify(pulseBoardHeader, process.env.CLERK_JWT_SECRET || "") as { [key: string]: any };
-
-    if (!decodedHeader || decodedHeader.message === process.env.CLERK_X_HEADER_WEBHOOK) {
+    if (pulseBoardHeader === process.env.CLERK_X_HEADER_WEBHOOK) {
         throw ApiError.unauthorized("Unauthorized webhook request");
     }
 
