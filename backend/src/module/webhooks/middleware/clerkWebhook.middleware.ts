@@ -1,5 +1,4 @@
 import type { NextFunction, Request, Response } from "express";
-import jwt from "jsonwebtoken";
 import ApiError from "../../../common/utils/api-error";
 
 export default function clerkWebhookMiddleware(req: Request, res: Response, next: NextFunction) {
