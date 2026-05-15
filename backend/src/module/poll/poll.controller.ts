@@ -817,7 +817,7 @@ export async function getPollAnalytics(req: Request, res: Response) {
   // ── Trend ──
   const trendMap = new Map<string, number>();
   for (const s of submissions) {
-    const date = s.createdAt.toISOString().split("T")[0];
+    const date = s.createdAt.toISOString().split("T")[0] as string;
     trendMap.set(date, (trendMap.get(date) ?? 0) + 1);
   }
   const trend = Array.from(trendMap.entries())
@@ -834,7 +834,7 @@ export async function getPollAnalytics(req: Request, res: Response) {
       (sum, o) => sum + o._count.submissionAnswers,
       0,
     );
-    const skipCount = submissions.filter((_, i) => !answeredSets[i].has(q.id)).length;
+    const skipCount = submissions.filter((_, i) => !answeredSets[i]?.has(q.id)).length;
 
     return {
       questionId: q.id,
