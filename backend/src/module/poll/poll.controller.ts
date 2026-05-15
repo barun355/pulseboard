@@ -644,7 +644,7 @@ export async function getPolls(req: Request, res: Response) {
 
   const polls = await prisma.poll.findMany({
     where: {
-      createdById: user.userId,
+      createdById: user.id,
       isDeleted: false
     },
     include: {
