@@ -8,7 +8,13 @@ export default function clerkWebhookMiddleware(req: Request, res: Response, next
         throw ApiError.unauthorized("Missing X-PulseBoard-Webhook header");
     }
 
-    if (pulseBoardHeader === process.env.CLERK_X_HEADER_WEBHOOK) {
+    const CLERK_X_HEADER_WEBHOOK = process.env.CLERK_X_HEADER_WEBHOOK;
+
+    if (!CLERK_X_HEADER_WEBHOOK) {
+        throw ApiError.internal("CLERK_X_HEADER_WEBHOOK environment variable is not set");
+    }
+
+    if (pulseBoardHeader === CLERK_X_HEADER_WEBHOOK) {
         throw ApiError.unauthorized("Unauthorized webhook request");
     }
 
