@@ -206,13 +206,36 @@ export async function submitResponse(req: Request, res: Response) {
     throw ApiError.internalServerError("Failed to submit metadata");
   }
 
-  // Emit the updated response to all the clients connected to the poll room
-  // TODO
-  //   const io = req.app.get("io");
-  //   io.to(pollId).emit("newResponse", {
-  //     message: "New response submitted",
-  //     response,
-  //   });
+  // Emit live response event to the poll room
+  const io = req.app.get("io");
+  if (io) {
+    const questionCount = await prisma.question.count({
+      where: { pollId: pollId as string, isDeleted: false },
+    });
+
+    let respondent = "Anonymous";
+    if (auth.userId) {
+      const user = await prisma.user.findUnique({
+        where: { id: auth.userId },
+        select: { fullName: true, email: true },
+      });
+      if (user) {
+        respondent = user.fullName || user.email;
+      }
+    }
+
+    io.to(pollId as string).emit("new-response", {
+      submissionId: response.id,
+      respondent,
+      questionsAnswered: submissionAnswers.length,
+      totalQuestions: questionCount,
+      answers: (responses as Array<{ questionId: string; optionId: string }>).map((r) => ({
+        questionId: r.questionId,
+        optionId: r.optionId || null,
+      })),
+      submittedAt: new Date().toISOString(),
+    });
+  }
 
   return ApiResponse.ok(res, "Response submitted successfully", response);
 }

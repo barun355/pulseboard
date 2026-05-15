@@ -22,12 +22,15 @@ const io = new Server(server, {
     }
 })
 
+app.set("io", io);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({
     origin: [
         process.env.FRONTEND_URL || 'http://localhost:5173',
         process.env.LANDING_PAGE_URL || 'http://localhost:3000',
+        "http://localhost:8080"
     ],
 }))
 
@@ -47,6 +50,16 @@ app.use("/api/v1/webhooks", webhooksRouter)
 io.on("connection", (socket) => {
     console.log("A user connected: ", socket.id);
 
+    socket.on("join-poll", ({ pollId }: { pollId: string }) => {
+        socket.join(pollId);
+        console.log(`Socket ${socket.id} joined poll room: ${pollId}`);
+    });
+
+    socket.on("leave-poll", ({ pollId }: { pollId: string }) => {
+        socket.leave(pollId);
+        console.log(`Socket ${socket.id} left poll room: ${pollId}`);
+    });
+
     socket.on("disconnect", () => {
         console.log("A user disconnected: ", socket.id);
     });
@@ -55,6 +68,6 @@ io.on("connection", (socket) => {
 app.use(globalErrorHandler);
 
 const PORT = process.env.PORT || 8000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });

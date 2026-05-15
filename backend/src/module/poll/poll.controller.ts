@@ -640,12 +640,12 @@ export async function getPollById(req: Request, res: Response) {
 }
 
 export async function getPolls(req: Request, res: Response) {
-  const auth = getAuth(req);
+  const user = (req as any).user;
 
   const polls = await prisma.poll.findMany({
     where: {
-      createdById: (req as any).auth.userId,
-      isDeleted: false,
+      createdById: user.userId,
+      isDeleted: false
     },
     include: {
       _count: {
@@ -661,8 +661,8 @@ export async function getPolls(req: Request, res: Response) {
     return res.status(404).json({ message: "Poll not found" });
   }
 
-  console.log("req: ", auth.userId);
-  console.log("Polls: ", { polls, userId: auth.userId });
+  console.log("req: ", user.userId);
+  console.log("Polls: ", { polls, userId: user.userId });
 
   return res.status(200).json({
     message: "Poll fetched successfully",
