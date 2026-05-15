@@ -14,7 +14,7 @@ export default function clerkWebhookMiddleware(req: Request, res: Response, next
         throw ApiError.internal("CLERK_X_HEADER_WEBHOOK environment variable is not set");
     }
 
-    if (pulseBoardHeader === CLERK_X_HEADER_WEBHOOK) {
+    if (pulseBoardHeader !== CLERK_X_HEADER_WEBHOOK) {
         throw ApiError.unauthorized("Unauthorized webhook request");
     }
 
