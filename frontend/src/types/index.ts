@@ -163,7 +163,46 @@ export interface LiveTrendPoint {
   count: number
 }
 
-// ── Responses ──
+// ── Responses (raw API shape) ──
+
+export interface SubmissionRaw {
+  id: string
+  submittedBy: string | null
+  pollId: string
+  feedback: string | null
+  rating: number | null
+  isCompleted: boolean
+  createdAt: string
+  submissionAnswers: {
+    id: string
+    questionId: string
+    optionId: string | null
+    question: { id: string; title: string; order: number }
+    option: { id: string; name: string } | null
+  }[]
+  submissionMetaData: {
+    submittedAt: string
+    startedAt: string
+    deviceType: string
+    browser: string
+    os: string
+    locale: string
+    timezone: string
+    referrer: string | null
+    utmSource: string | null
+    utmMedium: string | null
+    utmCampaign: string | null
+    screenResolution: string | null
+  } | null
+  user: {
+    email: string
+    fullName: string | null
+    profileImage: string | null
+    username: string
+  } | null
+}
+
+// ── Responses (display shape) ──
 
 export interface SubmissionAnswerDetail {
   questionId: string

@@ -10,13 +10,13 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard"
 import type { LucideIcon } from "lucide-react"
-import type { PollWithCounts } from "@/types"
+import type { Poll } from "@/types"
 import { FRONTEND_URL } from "@/lib/constants"
 
 interface SharePollDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  poll: PollWithCounts
+  poll: Poll
 }
 
 interface UtmPlatform {

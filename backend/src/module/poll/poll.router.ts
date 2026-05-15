@@ -5,7 +5,6 @@ import {
   updateQuestion,
   updatePollStatus,
   getPollById,
-  getResults,
   getPolls,
   deleteQuestion,
   deleteOption,
@@ -13,11 +12,12 @@ import {
   addOptions,
   updateQuestionOrder,
   updatePoll,
+  getPollSubmissions,
+  getPollAnalytics,
 } from "./poll.controller";
 import validate from "../../common/middleware/validate.middleware";
 import PollDto from "./dto/poll.dto";
 import QuestionDto from "./dto/question.dto";
-import PollSubmitDto from "../response/dto/responseSubmit.dto";
 import DeleteQuestionDto from "./dto/deleteQuestion.dto";
 import DeleteOptionDto from "./dto/deleteOption.dto";
 import UpdateQuestionDto from "./dto/updateQuestion.dto";
@@ -50,7 +50,7 @@ router.delete("/:pollId/questions/:questionId/option/:optionId", validate(Delete
 
 router.get("/", getPolls);
 router.get("/:pollId", getPollById);
-router.get("/:pollId/results", getResults);
-
+router.get("/:pollId/submissions", getPollSubmissions);
+router.get("/:pollId/analytics", getPollAnalytics);
 
 export default router;

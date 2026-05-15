@@ -340,7 +340,7 @@ export async function updateOptions(req: Request, res: Response) {
   const optionToBeUpdated = [];
 
   for (const option of existingQuestion?.options || []) {
-    const updatedOption = options.find((o) => o.id === option.id);
+    const updatedOption = options.find((o: any) => o.id === option.id);
     if (updatedOption) {
       optionToBeUpdated.push(updatedOption);
     }
@@ -670,45 +670,267 @@ export async function getPolls(req: Request, res: Response) {
   });
 }
 
-export async function getResults(req: Request, res: Response) {
-  // Destructure the pollId from the request params
+export async function getPollSubmissions(req: Request, res: Response) {
+
   const { pollId } = req.params;
+  const user = (req as any).user;
 
-  // Fetch the poll results from the db
-  const poll = await prisma.poll.findUnique({
+  if (!pollId) {
+    return ApiError.badRequest("Poll ID is required");
+  }
+
+  const existingPoll = await prisma.poll.findUnique({
     where: {
-      id: pollId,
+      id: pollId as string,
+      createdById: user.id,
+      isDeleted: false
     },
   });
 
-  if (!poll?.id) {
-    return res.status(404).json({ message: "Poll not found" });
+  if (!existingPoll) {
+    return ApiError.notFound("Poll not found");
   }
 
-  const isPollOwnerAccessing = poll.createdById === (req as any).user.id;
-
-  const pollResults = await prisma.submission.findFirst({
+  const submissions = await prisma.submission.findMany({
     where: {
-      pollId,
+      pollId: pollId as string,
+    },
+    include: {
+      submissionAnswers: {
+        include: {
+          question: true,
+          option: true
+        }
+      },
+      submissionMetaData: true,
+      user: {
+        select: {
+          email:  true,
+          fullName: true,
+          profileImage: true,
+          username: true
+        }
+      }
     },
   });
 
-  if (isPollOwnerAccessing) {
-    return res.status(200).json({
-      message: "Poll results fetched successfully",
-      data: pollResults,
-    });
+  if (!submissions) {
+    return ApiError.notFound("Submissions not found for this poll");
   }
 
-  if (!poll.isPublic && !isPollOwnerAccessing && !pollResults?.isPublic) {
-    return res.status(403).json({
-      message: "This poll is private. Please login to access the results",
-    });
-  }
-
-  // return the poll results to the frontend
   return res.status(200).json({
-    message: "Poll results fetched successfully",
-    data: pollResults,
+    message: "Submissions fetched successfully",
+    data: submissions,
+  });
+}
+
+export async function getPollAnalytics(req: Request, res: Response) {
+  const { pollId } = req.params;
+  const user = (req as any).user;
+
+  if (!pollId) {
+    return ApiError.badRequest("Poll ID is required");
+  }
+
+  const [poll, submissions] = await Promise.all([
+    prisma.poll.findUnique({
+      where: {
+        id: pollId as string,
+        createdById: user.id,
+        isDeleted: false,
+      },
+      include: {
+        questions: {
+          where: { isDeleted: false },
+          orderBy: { order: "asc" },
+          include: {
+            options: {
+              where: { isDeleted: false },
+              orderBy: { order: "asc" },
+              include: {
+                _count: { select: { submissionAnswers: true } },
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.submission.findMany({
+      where: { pollId: pollId as string },
+      select: {
+        id: true,
+        isCompleted: true,
+        rating: true,
+        feedback: true,
+        createdAt: true,
+        submissionAnswers: { select: { questionId: true } },
+        submissionMetaData: {
+          select: {
+            submittedAt: true,
+            startedAt: true,
+            deviceType: true,
+            browser: true,
+            os: true,
+            locale: true,
+            utmSource: true,
+            utmMedium: true,
+          },
+        },
+      },
+    }),
+  ]);
+
+  if (!poll) {
+    return ApiError.notFound("Poll not found");
+  }
+
+  // ── Overview ──
+  const total = submissions.length;
+  const completed = submissions.filter((s) => s.isCompleted).length;
+  const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  const timesSpent: number[] = [];
+  for (const s of submissions) {
+    const meta = s.submissionMetaData;
+    if (!meta) continue;
+    const submitted = new Date(meta.submittedAt).getTime();
+    const started = new Date(meta.startedAt).getTime();
+    timesSpent.push(Math.max(0, Math.round((submitted - started) / 1000)));
+  }
+  const avgTimeSeconds =
+    timesSpent.length > 0
+      ? Math.round(timesSpent.reduce((a, b) => a + b, 0) / timesSpent.length)
+      : 0;
+
+  const ratingValues = submissions
+    .map((s) => s.rating)
+    .filter((r): r is number => r != null);
+  const avgRating =
+    ratingValues.length > 0
+      ? parseFloat(
+          (ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length).toFixed(1),
+        )
+      : 0;
+
+  const overview = { totalResponses: total, completionRate, avgTimeSeconds, avgRating };
+
+  // ── Trend ──
+  const trendMap = new Map<string, number>();
+  for (const s of submissions) {
+    const date = s.createdAt.toISOString().split("T")[0];
+    trendMap.set(date, (trendMap.get(date) ?? 0) + 1);
+  }
+  const trend = Array.from(trendMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, count]) => ({ date, count }));
+
+  // ── Questions ──
+  const answeredSets = submissions.map(
+    (s) => new Set(s.submissionAnswers.map((a) => a.questionId)),
+  );
+
+  const questions = poll.questions.map((q) => {
+    const totalResponses = q.options.reduce(
+      (sum, o) => sum + o._count.submissionAnswers,
+      0,
+    );
+    const skipCount = submissions.filter((_, i) => !answeredSets[i].has(q.id)).length;
+
+    return {
+      questionId: q.id,
+      title: q.title,
+      totalResponses,
+      skipCount,
+      options: q.options.map((o) => ({
+        optionId: o.id,
+        name: o.name,
+        count: o._count.submissionAnswers,
+        pct:
+          totalResponses > 0
+            ? Math.round((o._count.submissionAnswers / totalResponses) * 100)
+            : 0,
+      })),
+    };
+  });
+
+  // ── Audience ──
+  const devices: Record<string, number> = {};
+  const browsers: Record<string, number> = {};
+  const os: Record<string, number> = {};
+  const locales: Record<string, number> = {};
+
+  for (const s of submissions) {
+    const meta = s.submissionMetaData;
+    if (!meta) continue;
+    devices[meta.deviceType] = (devices[meta.deviceType] ?? 0) + 1;
+    browsers[meta.browser] = (browsers[meta.browser] ?? 0) + 1;
+    os[meta.os] = (os[meta.os] ?? 0) + 1;
+    locales[meta.locale] = (locales[meta.locale] ?? 0) + 1;
+  }
+
+  const audience = { devices, browsers, os, locales };
+
+  // ── Sources ──
+  const sourceMap = new Map<string, { source: string; medium: string; count: number }>();
+  for (const s of submissions) {
+    const source = s.submissionMetaData?.utmSource || "direct";
+    const medium = s.submissionMetaData?.utmMedium || "none";
+    const key = `${source}::${medium}`;
+    const existing = sourceMap.get(key);
+    if (existing) {
+      existing.count++;
+    } else {
+      sourceMap.set(key, { source, medium, count: 1 });
+    }
+  }
+  const sources = Array.from(sourceMap.values()).sort((a, b) => b.count - a.count);
+
+  // ── Feedback ──
+  const ratingsMap: Record<string, number> = {};
+  for (const s of submissions) {
+    if (s.rating != null) {
+      const key = String(s.rating);
+      ratingsMap[key] = (ratingsMap[key] ?? 0) + 1;
+    }
+  }
+
+  const comments = submissions
+    .filter((s) => s.feedback != null && s.feedback.trim() !== "")
+    .map((s) => ({
+      rating: s.rating ?? 0,
+      text: s.feedback as string,
+      submittedAt: s.createdAt.toISOString(),
+    }))
+    .sort(
+      (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
+    );
+
+  const feedback = { ratings: ratingsMap, comments };
+
+  // ── Heatmap ──
+  const heatmapMap = new Map<string, number>();
+  for (const s of submissions) {
+    const dateObj = s.submissionMetaData
+      ? new Date(s.submissionMetaData.submittedAt)
+      : s.createdAt;
+    const jsDay = dateObj.getUTCDay(); // 0 = Sunday
+    const day = jsDay === 0 ? 6 : jsDay - 1; // 0 = Monday, 6 = Sunday
+    const hour = dateObj.getUTCHours();
+    const key = `${day}-${hour}`;
+    heatmapMap.set(key, (heatmapMap.get(key) ?? 0) + 1);
+  }
+  const heatmap = Array.from(heatmapMap.entries()).map(([key, count]) => {
+    const [day, hour] = key.split("-").map(Number);
+    return { day, hour, count };
+  });
+
+  return ApiResponse.ok(res, "Analytics data fetched successfully", {
+    overview,
+    trend,
+    questions,
+    audience,
+    sources,
+    feedback,
+    heatmap,
   });
 }

@@ -97,7 +97,8 @@ export function QuestionBreakdownCard({ questions }: QuestionBreakdownCardProps)
               radius={[0, 6, 6, 0]}
               animationDuration={500}
               animationEasing="ease-out"
-              label={({ x, y, width, height, value, index }: { x: number; y: number; width: number; height: number; value: number; index: number }) => {
+              label={(props: any) => {
+                const { x, y, width, height, value, index } = props
                 const pct = active.options[index]?.pct ?? 0
                 return (
                   <text

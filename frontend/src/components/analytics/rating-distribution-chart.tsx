@@ -75,7 +75,8 @@ export function RatingDistributionChart({
               dataKey="count"
               radius={[0, 6, 6, 0]}
               animationDuration={600}
-              label={({ x, y, width, height, index }: { x: number; y: number; width: number; height: number; index: number }) => {
+              label={(props: any) => {
+                const { x, y, width, height, index } = props
                 const pct = chartData[index]?.pct ?? 0
                 return (
                   <text

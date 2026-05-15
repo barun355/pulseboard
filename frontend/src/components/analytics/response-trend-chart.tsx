@@ -47,8 +47,8 @@ export function ResponseTrendChart({ data }: ResponseTrendChartProps) {
             <ChartTooltip
               content={
                 <ChartTooltipContent
-                  labelFormatter={(value: string) =>
-                    format(parseISO(value), "MMM d, yyyy")
+                  labelFormatter={(value) =>
+                    format(parseISO(String(value)), "MMM d, yyyy")
                   }
                 />
               }
