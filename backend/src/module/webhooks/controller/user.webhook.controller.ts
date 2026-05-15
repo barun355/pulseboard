@@ -31,7 +31,7 @@ export async function createUserController(req: Request, res: Response) {
         data: {
             id: userData.id,
             email: userData.email_addresses[0].email_address,
-            username: userData.username,
+            username: userData.username ? userData.username : userData.email_addresses[0].email_address.split("@")[0],
             fullName: userData.first_name + " " + userData.last_name,
             profileImage: userData.profile_image_url,
         }
