@@ -12,6 +12,11 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  ADMIN
+  USER
+}
+
 model User {
   id           String  @id @default(uuid())
   email        String  @unique
@@ -19,11 +24,15 @@ model User {
   fullName     String?
   profileImage String?
 
+  role Role @default(USER)
+
+  isDeleted Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   polls       Poll[]
-  submission Submission[]
+  submissions Submission[]
 }
 
 enum PollStatus {
@@ -38,7 +47,8 @@ model Poll {
 
   createdById String
 
-  slug        String  @unique
+  slug String @unique
+
   title       String
   description String?
 
@@ -46,8 +56,10 @@ model Poll {
 
   accessCode String? @unique
 
-  isPublic                      Boolean @default(false)
+  isPublic                     Boolean @default(false)
   isAnonymousSubmissionAllowed Boolean @default(false)
+  isAllowedToEditAfterSubmission  Boolean @default(false)
+  isDeleted                    Boolean @default(false)
 
   expiresAt DateTime
 
@@ -56,8 +68,8 @@ model Poll {
 
   createdBy User @relation(fields: [createdById], references: [id])
 
-  submission Submission[]
-  question   Question[]
+  submissions Submission[]
+  questions   Question[]
 }
 
 model Question {
@@ -70,17 +82,15 @@ model Question {
   description String?
 
   isOptional Boolean @default(false)
+  isDeleted  Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  submissionAnswer SubmissionAnswer[]
+  submissionAnswers SubmissionAnswer[]
 
-  poll    Poll      @relation(fields: [pollId], references: [id])
-  option Option[]
-
-
-  @@unique([pollId, order])
+  poll    Poll     @relation(fields: [pollId], references: [id])
+  options Option[]
 }
 
 model Option {
@@ -92,14 +102,14 @@ model Option {
   name  String
   value String
 
+  isDeleted Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  submissionAnswer SubmissionAnswer[]                                                                                
+  submissionAnswers SubmissionAnswer[]
 
   question Question @relation(fields: [questionId], references: [id])
-
-  @@unique([questionId, order])
 }
 
 model Submission {
@@ -113,16 +123,15 @@ model Submission {
   rating   Int?
 
   isCompleted Boolean @default(false)
-  isPublic Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  submissionAnswer   SubmissionAnswer[]
+  submissionAnswers  SubmissionAnswer[]
   submissionMetaData SubmissionMetaData?
 
   user User? @relation(fields: [submittedBy], references: [id])
-  poll Poll @relation(fields: [pollId], references: [id])
+  poll Poll  @relation(fields: [pollId], references: [id])
 
   // make sure to generate a userId for anonymous submission to avoid multiple submission from the same user at application level.
   @@unique([submittedBy, pollId])
@@ -141,7 +150,7 @@ model SubmissionAnswer {
 
   submission Submission @relation(fields: [submissionId], references: [id])
   question   Question   @relation(fields: [questionId], references: [id])
-  option     Option?     @relation(fields: [optionId], references: [id])
+  option     Option?    @relation(fields: [optionId], references: [id])
 
   @@unique([submissionId, questionId])
 }
@@ -170,7 +179,7 @@ model SubmissionMetaData {
   utmMedium   String?
   utmCampaign String?
 
-  userAgent String
+  userAgent        String
   screenResolution String?
 
   createdAt DateTime @default(now())

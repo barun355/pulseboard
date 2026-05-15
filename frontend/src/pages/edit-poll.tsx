@@ -1,5 +1,6 @@
-import { useEffect, useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
 import { useForm, Controller } from "react-hook-form"
 import { joiResolver } from "@hookform/resolvers/joi"
 import { format } from "date-fns"
@@ -16,6 +17,7 @@ import {
   Info,
   HelpCircle,
 } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
@@ -57,15 +59,33 @@ import {
   type CreatePollFormData,
 } from "@/lib/schemas/create-poll.schema"
 import type { QuestionFormData } from "@/lib/schemas/question.schema"
-import { MOCK_POLLS, MOCK_QUESTIONS } from "@/lib/mock-data"
+import { pollQueries } from "@/queries/poll.queries"
+import {
+  useAddQuestion,
+  useDeleteQuestion,
+  useUpdateQuestion,
+  useDeleteOption,
+  useUpdateOptions,
+  useAddOptions,
+  useUpdateQuestionOrder,
+  useUpdatePollStatus,
+} from "@/mutations/poll.mutations"
 import type { PollWithQuestions, QuestionWithOptions } from "@/types"
 
 export function EditPoll() {
   const { pollId } = useParams<{ pollId: string }>()
   const navigate = useNavigate()
 
-  const [poll, setPoll] = useState<PollWithQuestions | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { data: fetchedPoll, isLoading: loading } = useQuery(pollQueries.detail(pollId!))
+
+  // Local poll state seeded from query, allowing optimistic local edits
+  const [localPoll, setLocalPoll] = useState<PollWithQuestions | null>(null)
+  const poll = localPoll ?? (fetchedPoll ? {
+    ...fetchedPoll,
+    questions: [...(fetchedPoll.questions ?? [])].sort((a, b) => a.order - b.order),
+  } : null)
+  const setPoll = (updated: PollWithQuestions) => setLocalPoll(updated)
+
   const [settingsExpanded, setSettingsExpanded] = useState(false)
 
   // Question dialog state
@@ -76,36 +96,53 @@ export function EditPoll() {
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] =
     useState<QuestionWithOptions | null>(null)
-  const [deleting, setDeleting] = useState(false)
 
-  // Load poll data
-  useEffect(() => {
-    // TODO: Replace with API call
-    const mockPoll = MOCK_POLLS.find((p) => p.id === pollId)
-    if (mockPoll) {
-      const questions = MOCK_QUESTIONS[pollId!] ?? []
-      setPoll({
-        ...mockPoll,
-        questions: questions.sort((a, b) => a.order - b.order),
-      })
-    }
-    setLoading(false)
-  }, [pollId])
+  const addQuestion = useAddQuestion()
+  const deleteQuestionMutation = useDeleteQuestion()
+  const updateQuestionMutation = useUpdateQuestion()
+  const deleteOptionMutation = useDeleteOption()
+  const updateOptionsMutation = useUpdateOptions()
+  const addOptionsMutation = useAddOptions()
+  const updateQuestionOrderMutation = useUpdateQuestionOrder()
+  const updatePollStatusMutation = useUpdatePollStatus()
 
-  const canEdit = poll?.status === "DRAFT" || poll?.status === "ACTIVE"
+  const canEdit = poll?.status === "DRAFT" || poll?.status === "PUBLISHED"
   const canEditQuestions = poll?.status === "DRAFT"
   const canEditAllSettings = poll?.status === "DRAFT"
 
   // -- Question handlers --
 
+  function resetEditMutations() {
+    addQuestion.reset()
+    updateQuestionMutation.reset()
+    deleteOptionMutation.reset()
+    updateOptionsMutation.reset()
+    addOptionsMutation.reset()
+  }
+
   function handleAddQuestion() {
+    resetEditMutations()
     setEditingQuestion(null)
     setDialogOpen(true)
   }
 
   function handleEditQuestion(question: QuestionWithOptions) {
+    resetEditMutations()
     setEditingQuestion(question)
     setDialogOpen(true)
+  }
+
+  async function handleDeleteOption(optionId: string) {
+    if (!poll || !editingQuestion) return
+    await deleteOptionMutation.mutateAsync({
+      pollId: poll.id,
+      questionId: editingQuestion.id,
+      optionId,
+    })
+    // Update the editingQuestion reference so diff-on-save works correctly
+    setEditingQuestion((prev) =>
+      prev ? { ...prev, options: prev.options.filter((o) => o.id !== optionId) } : null
+    )
   }
 
   async function handleSaveQuestion(data: QuestionFormData) {
@@ -115,8 +152,55 @@ export function EditPoll() {
     const ts = new Date().toISOString()
 
     if (editingQuestion) {
-      // Update existing question
-      // TODO: API call — POST /api/poll/:pollId/questions/update
+      // Diff: which existing options changed, which are new
+      const existingOptions = optionsWithValues.filter((o) => o.id) as {
+        id: string; name: string; value: string; order: number
+      }[]
+      const newOptions = optionsWithValues.filter((o) => !o.id)
+
+      // Check if question metadata changed
+      const metadataChanged =
+        data.title !== editingQuestion.title ||
+        (data.description || null) !== (editingQuestion.description || null) ||
+        data.isOptional !== editingQuestion.isOptional
+
+      // Check if existing options changed (name, value, or order)
+      const optionsChanged = existingOptions.some((o) => {
+        const orig = editingQuestion.options.find((orig) => orig.id === o.id)
+        if (!orig) return true
+        return o.name !== orig.name || o.value !== orig.value || o.order !== orig.order
+      })
+
+      // Fire mutations sequentially for what actually changed
+      if (metadataChanged) {
+        await updateQuestionMutation.mutateAsync({
+          pollId: poll.id,
+          data: {
+            questionId: editingQuestion.id,
+            title: data.title,
+            description: data.description || undefined,
+            isOptional: data.isOptional,
+          },
+        })
+      }
+
+      if (optionsChanged && existingOptions.length > 0) {
+        await updateOptionsMutation.mutateAsync({
+          pollId: poll.id,
+          questionId: editingQuestion.id,
+          data: { options: existingOptions },
+        })
+      }
+
+      if (newOptions.length > 0) {
+        await addOptionsMutation.mutateAsync({
+          pollId: poll.id,
+          questionId: editingQuestion.id,
+          data: { options: newOptions },
+        })
+      }
+
+      // Optimistic local update
       const updated: QuestionWithOptions = {
         ...editingQuestion,
         title: data.title,
@@ -124,10 +208,14 @@ export function EditPoll() {
         isOptional: data.isOptional,
         updatedAt: ts,
         options: optionsWithValues.map((o, i) => ({
-          id: editingQuestion.options[i]?.id ?? `new-${Date.now()}-${i}`,
+          id: o.id ?? `new-${Date.now()}-${i}`,
           questionId: editingQuestion.id,
-          ...o,
-          createdAt: editingQuestion.options[i]?.createdAt ?? ts,
+          name: o.name,
+          value: o.value,
+          order: o.order,
+          createdAt: o.id
+            ? (editingQuestion.options.find((orig) => orig.id === o.id)?.createdAt ?? ts)
+            : ts,
           updatedAt: ts,
         })),
       }
@@ -139,34 +227,39 @@ export function EditPoll() {
         ),
       })
 
+      setDialogOpen(false)
       toast.success("Question updated")
     } else {
       // Add new question
-      // TODO: API call — POST /api/poll/:pollId/questions/add
-      const newId = `q-${Date.now()}`
-      const newQuestion: QuestionWithOptions = {
-        id: newId,
+      const newQuestion = await addQuestion.mutateAsync({
         pollId: poll.id,
-        order: poll.questions.length + 1,
-        title: data.title,
-        description: data.description || null,
-        isOptional: data.isOptional,
-        createdAt: ts,
-        updatedAt: ts,
-        options: optionsWithValues.map((o, i) => ({
-          id: `o-${Date.now()}-${i}`,
-          questionId: newId,
-          ...o,
-          createdAt: ts,
-          updatedAt: ts,
-        })),
-      }
+        data: {
+          title: data.title,
+          description: data.description || undefined,
+          isOptional: data.isOptional,
+          order: poll.questions.length + 1,
+          options: optionsWithValues,
+        },
+      })
 
       setPoll({
         ...poll,
-        questions: [...poll.questions, newQuestion],
+        questions: [
+          ...poll.questions,
+          {
+            ...newQuestion,
+            options: newQuestion.options ?? optionsWithValues.map((o, i) => ({
+              id: `pending-${i}`,
+              questionId: newQuestion.id,
+              ...o,
+              createdAt: ts,
+              updatedAt: ts,
+            })),
+          } as QuestionWithOptions,
+        ],
       })
 
+      setDialogOpen(false)
       toast.success("Question added")
     }
   }
@@ -174,18 +267,22 @@ export function EditPoll() {
   async function handleDeleteQuestion() {
     if (!poll || !deleteTarget) return
 
-    setDeleting(true)
-    // TODO: API call — DELETE /api/poll/:pollId/questions/:questionId
-    await new Promise((r) => setTimeout(r, 300))
+    try {
+      await deleteQuestionMutation.mutateAsync({
+        pollId: poll.id,
+        questionId: deleteTarget.id,
+      })
 
-    const remaining = poll.questions
-      .filter((q) => q.id !== deleteTarget.id)
-      .map((q, i) => ({ ...q, order: i + 1 }))
+      const remaining = poll.questions
+        .filter((q) => q.id !== deleteTarget.id)
+        .map((q, i) => ({ ...q, order: i + 1 }))
 
-    setPoll({ ...poll, questions: remaining })
-    setDeleteTarget(null)
-    setDeleting(false)
-    toast.success("Question deleted")
+      setPoll({ ...poll, questions: remaining })
+      setDeleteTarget(null)
+      toast.success("Question deleted")
+    } catch {
+      // Error is captured by the mutation — shown in the dialog
+    }
   }
 
   function handleMoveQuestion(index: number, direction: "up" | "down") {
@@ -198,27 +295,53 @@ export function EditPoll() {
     const reordered = updated.map((q, i) => ({ ...q, order: i + 1 }))
 
     setPoll({ ...poll, questions: reordered })
-    // TODO: API call to persist new order
+
+    updateQuestionOrderMutation.mutate(
+      {
+        pollId: poll.id,
+        data: {
+          questions: reordered.map((q) => ({ id: q.id, order: q.order })),
+        },
+      },
+      {
+        onError: () => {
+          // Revert to original order on failure
+          setPoll({ ...poll })
+          toast.error("Failed to reorder questions")
+        },
+      },
+    )
   }
 
   // -- Status handler --
 
   async function handleStatusChange(
-    newStatus: "ACTIVE" | "CLOSED"
+    newStatus: "DRAFT" | "PUBLISHED" | "CLOSED"
   ) {
     if (!poll) return
 
-    if (newStatus === "ACTIVE" && poll.questions.length === 0) {
-      toast.error("Add at least one question before activating the poll")
+    if (newStatus === "PUBLISHED" && poll.questions.length === 0) {
+      toast.error("Add at least one question before publishing the poll")
       return
     }
 
-    // TODO: API call — PATCH /api/poll/:pollId/status
-    setPoll({ ...poll, status: newStatus })
-    toast.success(
-      newStatus === "ACTIVE"
-        ? "Poll is now live!"
-        : "Poll has been closed."
+    updatePollStatusMutation.mutate(
+      { pollId: poll.id, status: newStatus },
+      {
+        onSuccess: () => {
+          setPoll({ ...poll, status: newStatus })
+          toast.success(
+            newStatus === "PUBLISHED"
+              ? "Poll is now live!"
+              : newStatus === "DRAFT"
+                ? "Poll has been unpublished."
+                : "Poll has been closed."
+          )
+        },
+        onError: (error) => {
+          toast.error(error.message || "Failed to update poll status")
+        },
+      },
     )
   }
 
@@ -226,8 +349,62 @@ export function EditPoll() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      <div className="mx-auto max-w-3xl space-y-6">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-7 w-48" />
+              <Skeleton className="h-5 w-16 rounded-full" />
+            </div>
+            <Skeleton className="h-4 w-64" />
+          </div>
+        </div>
+        {/* Settings Card (collapsed) */}
+        <Card className="shadow-ambient">
+          <div className="flex items-center justify-between px-6 py-4">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-5 w-24" />
+              <Skeleton className="h-3.5 w-40" />
+            </div>
+            <Skeleton className="size-4" />
+          </div>
+        </Card>
+        {/* Questions Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-8 w-32 rounded-md" />
+          </div>
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i} className="shadow-ambient">
+                <CardContent className="space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2 flex-1">
+                      <Skeleton className="mt-0.5 h-4 w-5" />
+                      <Skeleton className="h-4 w-3/4" />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Skeleton className="size-7 rounded-md" />
+                      <Skeleton className="size-7 rounded-md" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pl-5">
+                    <Skeleton className="h-8 w-20 rounded-md" />
+                    <Skeleton className="h-8 w-24 rounded-md" />
+                    <Skeleton className="h-8 w-18 rounded-md" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+        {/* Bottom actions */}
+        <div className="flex items-center justify-end gap-3 border-t pt-6">
+          <Skeleton className="h-9 w-36 rounded-md" />
+          <Skeleton className="h-9 w-36 rounded-md" />
+        </div>
       </div>
     )
   }
@@ -261,6 +438,17 @@ export function EditPoll() {
             </p>
           )}
         </div>
+        {poll.status === "PUBLISHED" && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleStatusChange("DRAFT")}
+            disabled={updatePollStatusMutation.isPending}
+          >
+            {updatePollStatusMutation.isPending && <Loader2 className="size-4 animate-spin" />}
+            Unpublish
+          </Button>
+        )}
       </div>
 
       {/* Non-editable banner */}
@@ -344,16 +532,22 @@ export function EditPoll() {
             Back to Dashboard
           </Button>
           {poll.status === "DRAFT" && (
-            <Button onClick={() => handleStatusChange("ACTIVE")}>
-              Activate & Go Live
+            <Button
+              onClick={() => handleStatusChange("PUBLISHED")}
+              disabled={updatePollStatusMutation.isPending}
+            >
+              {updatePollStatusMutation.isPending && <Loader2 className="size-4 animate-spin" />}
+              {updatePollStatusMutation.isPending ? "Publishing..." : "Publish & Go Live"}
             </Button>
           )}
-          {poll.status === "ACTIVE" && (
+          {poll.status === "PUBLISHED" && (
             <Button
               variant="destructive"
               onClick={() => handleStatusChange("CLOSED")}
+              disabled={updatePollStatusMutation.isPending}
             >
-              Close Poll
+              {updatePollStatusMutation.isPending && <Loader2 className="size-4 animate-spin" />}
+              {updatePollStatusMutation.isPending ? "Closing..." : "Close Poll"}
             </Button>
           )}
         </div>
@@ -365,12 +559,34 @@ export function EditPoll() {
         onOpenChange={setDialogOpen}
         question={editingQuestion}
         onSave={handleSaveQuestion}
+        onDeleteOption={editingQuestion ? handleDeleteOption : undefined}
+        isPending={
+          editingQuestion
+            ? updateQuestionMutation.isPending ||
+              updateOptionsMutation.isPending ||
+              addOptionsMutation.isPending
+            : addQuestion.isPending
+        }
+        apiError={
+          editingQuestion
+            ? (updateQuestionMutation.error?.message ??
+               updateOptionsMutation.error?.message ??
+               addOptionsMutation.error?.message ??
+               deleteOptionMutation.error?.message ??
+               null)
+            : (addQuestion.error?.message ?? null)
+        }
       />
 
       {/* Delete confirmation dialog */}
       <Dialog
         open={deleteTarget !== null}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onOpenChange={(open) => {
+          if (!open && !deleteQuestionMutation.isPending) {
+            deleteQuestionMutation.reset()
+            setDeleteTarget(null)
+          }
+        }}
       >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
@@ -380,21 +596,29 @@ export function EditPoll() {
               This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
+          {deleteQuestionMutation.error && (
+            <p className="text-sm text-destructive px-1">
+              {deleteQuestionMutation.error.message}
+            </p>
+          )}
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setDeleteTarget(null)}
-              disabled={deleting}
+              onClick={() => {
+                deleteQuestionMutation.reset()
+                setDeleteTarget(null)
+              }}
+              disabled={deleteQuestionMutation.isPending}
             >
               Cancel
             </Button>
             <Button
               variant="destructive"
               onClick={handleDeleteQuestion}
-              disabled={deleting}
+              disabled={deleteQuestionMutation.isPending}
             >
-              {deleting && <Loader2 className="size-4 animate-spin" />}
-              {deleting ? "Deleting..." : "Delete"}
+              {deleteQuestionMutation.isPending && <Loader2 className="size-4 animate-spin" />}
+              {deleteQuestionMutation.isPending ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -439,6 +663,7 @@ function PollSettingsCard({
       expiryTime,
       isPublic: poll.isPublic,
       isAnonymousSubmissionAllowed: poll.isAnonymousSubmissionAllowed,
+      isAllowedToEditAfterResponse: poll.isAllowedToEditAfterResponse,
       accessCode: poll.accessCode ?? "",
     },
     mode: "onTouched",
@@ -485,6 +710,7 @@ function PollSettingsCard({
       expiresAt,
       isPublic: data.isPublic,
       isAnonymousSubmissionAllowed: data.isAnonymousSubmissionAllowed,
+      isAllowedToEditAfterResponse: data.isAllowedToEditAfterResponse,
       accessCode: data.isPublic ? null : data.accessCode,
     })
 
@@ -528,7 +754,7 @@ function PollSettingsCard({
                     <Input
                       {...field}
                       id="edit-title"
-                      disabled={!canEditAll && poll.status === "ACTIVE"}
+                      disabled={!canEditAll && poll.status === "PUBLISHED"}
                       aria-invalid={fieldState.invalid}
                     />
                     {fieldState.invalid && (
@@ -538,7 +764,7 @@ function PollSettingsCard({
                 )}
               />
 
-              {/* Slug (read-only for ACTIVE polls) */}
+              {/* Slug (read-only for PUBLISHED polls) */}
               <Controller
                 name="slug"
                 control={control}
@@ -786,6 +1012,32 @@ function PollSettingsCard({
                     </div>
                     <Switch
                       id="edit-isAnonymous"
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={!canEditAll}
+                    />
+                  </Field>
+                )}
+              />
+
+              {/* isAllowedToEditAfterResponse */}
+              <Controller
+                name="isAllowedToEditAfterResponse"
+                control={control}
+                render={({ field }) => (
+                  <Field orientation="horizontal">
+                    <div className="flex flex-1 flex-col gap-0.5">
+                      <FieldLabel htmlFor="edit-isAllowedToEditAfterResponse">
+                        Allow Response Editing
+                      </FieldLabel>
+                      <FieldDescription>
+                        {field.value
+                          ? "Respondents can edit their response after submitting."
+                          : "Responses are locked once submitted."}
+                      </FieldDescription>
+                    </div>
+                    <Switch
+                      id="edit-isAllowedToEditAfterResponse"
                       checked={field.value}
                       onCheckedChange={field.onChange}
                       disabled={!canEditAll}

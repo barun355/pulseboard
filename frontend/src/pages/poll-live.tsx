@@ -1,18 +1,23 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { format } from "date-fns"
-import { ArrowLeft, HelpCircle, Loader2, Radio } from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
+import { ArrowLeft, HelpCircle, Radio } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { StatCardSkeleton } from "@/components/skeletons/stat-card-skeleton"
+import { ChartCardSkeleton } from "@/components/skeletons/chart-card-skeleton"
 import { PollStatusBadge } from "@/components/poll/poll-status-badge"
 import { LiveStatsBar } from "@/components/live/live-stats-bar"
 import { LiveTrendChart } from "@/components/live/live-trend-chart"
 import { LiveQuestionBreakdown } from "@/components/live/live-question-breakdown"
 import { SubmissionFeed } from "@/components/live/submission-feed"
 import { usePollSocket } from "@/hooks/use-poll-socket"
-import { MOCK_POLLS, MOCK_ANALYTICS, MOCK_QUESTIONS } from "@/lib/mock-data"
+import { pollQueries } from "@/queries/poll.queries"
+import { analyticsQueries } from "@/queries/analytics.queries"
 import type {
-  PollWithCounts,
   LiveResponseEvent,
   LiveQuestionState,
   LiveTrendPoint,
@@ -26,9 +31,15 @@ export function PollLive() {
   const { pollId } = useParams<{ pollId: string }>()
   const navigate = useNavigate()
 
-  const [poll, setPoll] = useState<PollWithCounts | null>(null)
-  const [questions, setQuestions] = useState<QuestionWithOptions[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: poll, isLoading: pollLoading } = useQuery(pollQueries.detail(pollId!))
+  const { data: analytics, isLoading: analyticsLoading } = useQuery(analyticsQueries.poll(pollId!))
+
+  const questions: QuestionWithOptions[] = useMemo(
+    () => (poll?.questions ?? []).sort((a, b) => a.order - b.order),
+    [poll],
+  )
+  const loading = pollLoading || analyticsLoading
+  const initializedRef = useRef(false)
 
   // Live state
   const [totalResponses, setTotalResponses] = useState(0)
@@ -39,15 +50,11 @@ export function PollLive() {
 
   const recentTimestamps = useRef<number[]>([])
 
-  // Load initial data
+  // Seed live state from query data once loaded
   useEffect(() => {
-    const found = MOCK_POLLS.find((p) => p.id === pollId) ?? null
-    setPoll(found)
+    if (initializedRef.current || loading) return
+    initializedRef.current = true
 
-    const qs = (MOCK_QUESTIONS[pollId!] ?? []).sort((a, b) => a.order - b.order)
-    setQuestions(qs)
-
-    const analytics = MOCK_ANALYTICS[pollId!]
     if (analytics) {
       setTotalResponses(analytics.overview.totalResponses)
       setQuestionStates(
@@ -62,7 +69,6 @@ export function PollLive() {
           totalResponses: q.totalResponses,
         }))
       )
-      // Seed trend with current time
       setTrendData([
         {
           time: format(new Date(), "HH:mm"),
@@ -70,9 +76,8 @@ export function PollLive() {
         },
       ])
     } else {
-      // No analytics yet — initialize from questions
       setQuestionStates(
-        qs.map((q) => ({
+        questions.map((q) => ({
           questionId: q.id,
           title: q.title,
           options: q.options
@@ -82,9 +87,7 @@ export function PollLive() {
         }))
       )
     }
-
-    setLoading(false)
-  }, [pollId])
+  }, [loading, analytics, questions])
 
   // Rate calculation interval
   useEffect(() => {
@@ -159,8 +162,54 @@ export function PollLive() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      <div className="mx-auto max-w-5xl space-y-6">
+        {/* Header */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-7 w-44" />
+            <Skeleton className="h-5 w-16 rounded-full" />
+            <Skeleton className="h-5 w-12 rounded-full" />
+          </div>
+          <Skeleton className="h-8 w-28 rounded-md" />
+        </div>
+        {/* Stats Bar */}
+        <Card className="shadow-ambient">
+          <CardContent className="flex items-center justify-between">
+            <div className="flex items-center gap-6">
+              <div className="space-y-1.5">
+                <Skeleton className="h-3.5 w-24" />
+                <Skeleton className="h-8 w-16" />
+              </div>
+              <div className="space-y-1.5">
+                <Skeleton className="h-3.5 w-20" />
+                <Skeleton className="h-5 w-12 rounded-full" />
+              </div>
+            </div>
+            <Skeleton className="size-3 rounded-full" />
+          </CardContent>
+        </Card>
+        {/* Trend Chart */}
+        <ChartCardSkeleton height={250} />
+        {/* Feed */}
+        <Card className="shadow-ambient">
+          <CardHeader>
+            <Skeleton className="h-5 w-40" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton className="size-8 rounded-full" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+        {/* Question Breakdown */}
+        <ChartCardSkeleton height={200} />
       </div>
     )
   }
@@ -177,7 +226,7 @@ export function PollLive() {
     )
   }
 
-  if (poll.status !== "ACTIVE") {
+  if (poll.status !== "PUBLISHED") {
     return (
       <div className="mx-auto max-w-3xl space-y-4 py-20 text-center">
         <Radio className="mx-auto size-10 text-muted-foreground/50" />
@@ -185,7 +234,7 @@ export function PollLive() {
           This poll is not live
         </p>
         <p className="text-sm text-muted-foreground">
-          Only active polls can be viewed in real-time.
+          Only published polls can be viewed in real-time.
         </p>
         <Button
           variant="outline"

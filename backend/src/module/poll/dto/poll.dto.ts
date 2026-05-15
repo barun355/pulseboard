@@ -9,6 +9,9 @@ class PollDto extends BaseDto {
         isPublic: Joi.boolean().required(),
         expiresAt: Joi.date().required(),
         isAnonymousSubmissionAllowed: Joi.boolean().required(),
+        accessCode: Joi.string().optional().min(4).max(20),
+        createdById: Joi.string().required(),
+        isAllowedToEditAfterSubmission: Joi.boolean().optional(),
     })
 }
 

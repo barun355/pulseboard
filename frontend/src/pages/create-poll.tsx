@@ -41,6 +41,8 @@ import {
   createPollSchema,
   type CreatePollFormData,
 } from "@/lib/schemas/create-poll.schema"
+import { useCreatePoll } from "@/mutations/poll.mutations"
+import { useUser } from "@clerk/react"
 
 const DEFAULT_VALUES: CreatePollFormData = {
   title: "",
@@ -50,6 +52,7 @@ const DEFAULT_VALUES: CreatePollFormData = {
   expiryTime: "23:59:00",
   isPublic: true,
   isAnonymousSubmissionAllowed: true,
+  isAllowedToEditAfterResponse: false,
   accessCode: "",
 }
 
@@ -58,6 +61,8 @@ export function CreatePoll() {
   const [showAccessCode, setShowAccessCode] = useState(false)
   const [calendarOpen, setCalendarOpen] = useState(false)
   const slugTouched = useRef(false)
+  const { user } = useUser()
+  const createPoll = useCreatePoll()
 
   const form = useForm<CreatePollFormData>({
     resolver: joiResolver(createPollSchema),
@@ -96,7 +101,6 @@ export function CreatePoll() {
   }, [isPublic, setValue])
 
   async function onSubmit(data: CreatePollFormData) {
-    // Combine date + time into ISO string
     const expiresAt = new Date(
       `${data.expiryDate}T${data.expiryTime}`
     ).toISOString()
@@ -106,30 +110,32 @@ export function CreatePoll() {
       return
     }
 
-    try {
-      // TODO: Replace with actual API call
-      const payload = {
+    createPoll.mutate(
+      {
         title: data.title,
         slug: data.slug,
         description: data.description,
         expiresAt,
         isPublic: data.isPublic,
         isAnonymousSubmissionAllowed: data.isAnonymousSubmissionAllowed,
+        isAllowedToEditAfterResponse: data.isAllowedToEditAfterResponse,
+        createdById: user?.id ?? "",
         ...(data.isPublic ? {} : { accessCode: data.accessCode }),
-      }
-      console.log("Creating poll:", payload)
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      toast.success("Poll created successfully!", {
-        description: "You can now add questions to your poll.",
-      })
-
-      navigate("/polls/new-poll-id/edit")
-    } catch {
-      toast.error("Failed to create poll", {
-        description: "Something went wrong. Please try again.",
-      })
-    }
+      },
+      {
+        onSuccess: (newPoll) => {
+          toast.success("Poll created successfully!", {
+            description: "You can now add questions to your poll.",
+          })
+          navigate(`/polls/${newPoll.id}/edit`)
+        },
+        onError: (err) => {
+          toast.error("Failed to create poll", {
+            description: err.message || "Something went wrong. Please try again.",
+          })
+        },
+      },
+    )
   }
 
   return (
@@ -423,6 +429,31 @@ export function CreatePoll() {
                   </Field>
                 )}
               />
+
+              {/* isAllowedToEditAfterResponse Toggle */}
+              <Controller
+                name="isAllowedToEditAfterResponse"
+                control={control}
+                render={({ field }) => (
+                  <Field orientation="horizontal">
+                    <div className="flex flex-1 flex-col gap-0.5">
+                      <FieldLabel htmlFor="isAllowedToEditAfterResponse">
+                        Allow Response Editing
+                      </FieldLabel>
+                      <FieldDescription>
+                        {field.value
+                          ? "Respondents can edit their response after submitting."
+                          : "Responses are locked once submitted."}
+                      </FieldDescription>
+                    </div>
+                    <Switch
+                      id="isAllowedToEditAfterResponse"
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </Field>
+                )}
+              />
             </FieldGroup>
           </CardContent>
         </Card>
@@ -437,9 +468,9 @@ export function CreatePoll() {
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="size-4 animate-spin" />}
-            {isSubmitting ? "Creating..." : "Create Poll"}
+          <Button type="submit" disabled={isSubmitting || createPoll.isPending}>
+            {(isSubmitting || createPoll.isPending) && <Loader2 className="size-4 animate-spin" />}
+            {isSubmitting || createPoll.isPending ? "Creating..." : "Create Poll"}
           </Button>
         </div>
       </form>

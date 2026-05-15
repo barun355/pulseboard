@@ -8,6 +8,7 @@ export interface CreatePollFormData {
   expiryTime: string
   isPublic: boolean
   isAnonymousSubmissionAllowed: boolean
+  isAllowedToEditAfterResponse: boolean
   accessCode: string
 }
 
@@ -61,6 +62,8 @@ export const createPollSchema = Joi.object<CreatePollFormData>({
   isPublic: Joi.boolean().required(),
 
   isAnonymousSubmissionAllowed: Joi.boolean().required(),
+
+  isAllowedToEditAfterResponse: Joi.boolean().required(),
 
   accessCode: Joi.when("isPublic", {
     is: false,

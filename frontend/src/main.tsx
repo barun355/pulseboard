@@ -1,6 +1,7 @@
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { createBrowserRouter, RouterProvider } from "react-router-dom"
+import { QueryClientProvider } from "@tanstack/react-query"
 import "./index.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -13,6 +14,9 @@ import { PollAnalytics } from "@/pages/poll-analytics"
 import { PollLive } from "@/pages/poll-live"
 import { PollResponses } from "@/pages/poll-responses"
 import { SettingsPage } from "@/pages/settings"
+import { ClerkProvider } from "@clerk/react"
+import { CLERK_URLS } from "./lib/constants"
+import { queryClient } from "@/queries/query-client"
 
 const router = createBrowserRouter([
   {
@@ -30,12 +34,18 @@ const router = createBrowserRouter([
   },
 ])
 
+const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || ""
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <ThemeProvider>
-      <TooltipProvider>
-        <RouterProvider router={router} />
-      </TooltipProvider>
-    </ThemeProvider>
+    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} afterSignOutUrl={CLERK_URLS.afterSignOutUrl}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <TooltipProvider>
+            <RouterProvider router={router} />
+          </TooltipProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ClerkProvider>
   </StrictMode>
 )

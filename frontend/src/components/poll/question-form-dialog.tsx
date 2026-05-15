@@ -36,6 +36,9 @@ interface QuestionFormDialogProps {
   onOpenChange: (open: boolean) => void
   question: QuestionWithOptions | null
   onSave: (data: QuestionFormData) => Promise<void>
+  onDeleteOption?: (optionId: string) => Promise<void>
+  isPending?: boolean
+  apiError?: string | null
 }
 
 interface FieldErrors {
@@ -56,16 +59,19 @@ export function QuestionFormDialog({
   onOpenChange,
   question,
   onSave,
+  onDeleteOption,
+  isPending = false,
+  apiError = null,
 }: QuestionFormDialogProps) {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [isOptional, setIsOptional] = useState(false)
-  const [options, setOptions] = useState<{ name: string }[]>([
+  const [options, setOptions] = useState<{ id?: string; name: string }[]>([
     { name: "" },
     { name: "" },
   ])
   const [errors, setErrors] = useState<FieldErrors>({})
-  const [saving, setSaving] = useState(false)
+  const [deletingOptionId, setDeletingOptionId] = useState<string | null>(null)
 
   const isEditing = question !== null
 
@@ -80,7 +86,7 @@ export function QuestionFormDialog({
       setOptions(
         question.options
           .sort((a, b) => a.order - b.order)
-          .map((o) => ({ name: o.name }))
+          .map((o) => ({ id: o.id, name: o.name }))
       )
     } else {
       setTitle(EMPTY_FORM.title)
@@ -125,16 +131,7 @@ export function QuestionFormDialog({
 
   async function handleSave() {
     if (!validate()) return
-
-    setSaving(true)
-    try {
-      await onSave({ title, description, isOptional, options })
-      onOpenChange(false)
-    } catch {
-      // Parent handles error toast
-    } finally {
-      setSaving(false)
-    }
+    await onSave({ title, description, isOptional, options })
   }
 
   function addOption() {
@@ -142,14 +139,31 @@ export function QuestionFormDialog({
     setOptions([...options, { name: "" }])
   }
 
-  function removeOption(index: number) {
+  async function removeOption(index: number) {
     if (options.length <= 2) return
+    const option = options[index]
+
+    // Existing option (has id) — call API immediately
+    if (option.id && onDeleteOption) {
+      setDeletingOptionId(option.id)
+      try {
+        await onDeleteOption(option.id)
+        setOptions(options.filter((_, i) => i !== index))
+      } catch {
+        // Error is surfaced via apiError prop
+      } finally {
+        setDeletingOptionId(null)
+      }
+      return
+    }
+
+    // New option (no id) — just remove locally
     setOptions(options.filter((_, i) => i !== index))
   }
 
   function updateOptionName(index: number, name: string) {
     const updated = [...options]
-    updated[index] = { name }
+    updated[index] = { ...updated[index], name }
     setOptions(updated)
   }
 
@@ -162,7 +176,7 @@ export function QuestionFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => !isPending && !deletingOptionId && onOpenChange(v)}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
@@ -271,11 +285,15 @@ export function QuestionFormDialog({
                       variant="ghost"
                       size="icon-sm"
                       onClick={() => removeOption(index)}
-                      disabled={options.length <= 2}
+                      disabled={options.length <= 2 || deletingOptionId !== null}
                       aria-label="Remove option"
                       className="text-destructive hover:text-destructive"
                     >
-                      <Trash2 className="size-3.5" />
+                      {deletingOptionId === option.id ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="size-3.5" />
+                      )}
                     </Button>
                   </div>
                 ))}
@@ -301,17 +319,21 @@ export function QuestionFormDialog({
           </FieldGroup>
         </div>
 
+        {apiError && (
+          <p className="text-sm text-destructive px-1">{apiError}</p>
+        )}
+
         <DialogFooter>
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={saving}
+            disabled={isPending || deletingOptionId !== null}
           >
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving && <Loader2 className="size-4 animate-spin" />}
-            {saving
+          <Button onClick={handleSave} disabled={isPending || deletingOptionId !== null}>
+            {isPending && <Loader2 className="size-4 animate-spin" />}
+            {isPending
               ? "Saving..."
               : isEditing
                 ? "Update Question"

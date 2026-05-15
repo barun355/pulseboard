@@ -32,7 +32,7 @@ export function PollCard({ poll }: { poll: PollWithCounts }) {
             <PollStatusBadge status={poll.status} />
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
               <MessageSquare className="size-3" />
-              {poll._count.submission}
+              {poll._count.submissions}
             </span>
           </div>
         </div>
@@ -58,7 +58,7 @@ export function PollCard({ poll }: { poll: PollWithCounts }) {
             <span className="text-border">|</span>
             <span className="flex items-center gap-1">
               <HelpCircle className="size-3" />
-              {poll._count.question} questions
+              {poll._count.questions} questions
             </span>
           </div>
 

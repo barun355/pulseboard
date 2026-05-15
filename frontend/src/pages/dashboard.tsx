@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import { BarChart3, Activity, MessageSquare, Plus, Search } from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -10,9 +11,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyContent,
+} from "@/components/ui/empty"
+import { Skeleton } from "@/components/ui/skeleton"
 import { StatCard } from "@/components/analytics/stat-card"
+import { StatCardSkeleton } from "@/components/skeletons/stat-card-skeleton"
 import { PollCard } from "@/components/poll/poll-card"
-import { MOCK_POLLS } from "@/lib/mock-data"
+import { PollCardSkeleton } from "@/components/skeletons/poll-card-skeleton"
+import { pollQueries } from "@/queries/poll.queries"
 import type { PollStatus } from "@/types"
 
 type StatusFilter = "ALL" | PollStatus
@@ -21,12 +33,12 @@ export function Dashboard() {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL")
 
-  const polls = MOCK_POLLS
+  const { data: polls = [], isLoading, error } = useQuery(pollQueries.list())
 
   const totalPolls = polls.length
   const activePolls = polls.filter((p) => p.status === "ACTIVE").length
   const totalResponses = polls.reduce(
-    (sum, p) => sum + p._count.submission,
+    (sum, p) => sum + p._count.submissions,
     0
   )
 
@@ -40,6 +52,57 @@ export function Dashboard() {
       return matchesSearch && matchesStatus
     })
   }, [polls, search, statusFilter])
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-5xl space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-36" />
+            <Skeleton className="h-4 w-56" />
+          </div>
+          <Skeleton className="h-9 w-32 rounded-md" />
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-10 flex-1 rounded-md" />
+          <Skeleton className="h-10 w-36 rounded-md" />
+        </div>
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <PollCardSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-5xl space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-heading text-2xl font-semibold tracking-tight">
+              Dashboard
+            </h2>
+            <p className="text-sm text-destructive">
+              Failed to load polls. Please try again.
+            </p>
+          </div>
+          <Button asChild>
+            <Link to="/polls/create">
+              <Plus className="size-4" data-icon="inline-start" />
+              Create Poll
+            </Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -115,24 +178,41 @@ export function Dashboard() {
             <PollCard key={poll.id} poll={poll} />
           ))}
         </div>
+      ) : search || statusFilter !== "ALL" ? (
+        <Empty className="py-16">
+          <EmptyHeader>
+            <EmptyMedia>
+              <Search className="size-10 text-muted-foreground/50" />
+            </EmptyMedia>
+            <EmptyTitle>No matching polls</EmptyTitle>
+            <EmptyDescription>
+              Try adjusting your search or filter to find what you're looking for.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-16 text-center">
-          <BarChart3 className="mb-3 size-10 text-muted-foreground/50" />
-          <p className="font-heading text-lg font-medium">No polls found</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {search || statusFilter !== "ALL"
-              ? "Try adjusting your search or filter."
-              : "Create your first poll to get started."}
-          </p>
-          {!search && statusFilter === "ALL" && (
-            <Button asChild className="mt-4">
+        <Empty className="py-16">
+          <EmptyHeader>
+            <EmptyMedia>
+              <BarChart3 className="size-10 text-muted-foreground/50" />
+            </EmptyMedia>
+            <EmptyTitle>
+              "The best decisions are made with data, not assumptions."
+            </EmptyTitle>
+            <EmptyDescription>
+              Create your first poll and start turning opinions into insights.
+              It only takes 60 seconds.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button asChild>
               <Link to="/polls/create">
                 <Plus className="size-4" data-icon="inline-start" />
-                Create Poll
+                Create Your First Poll
               </Link>
             </Button>
-          )}
-        </div>
+          </EmptyContent>
+        </Empty>
       )}
     </div>
   )

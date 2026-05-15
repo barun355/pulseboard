@@ -2,6 +2,7 @@ import type {
   PollWithCounts,
   QuestionWithOptions,
   PollAnalyticsData,
+  ResponseDetail,
 } from "@/types"
 
 export const MOCK_POLLS: PollWithCounts[] = [
@@ -260,4 +261,85 @@ export const MOCK_ANALYTICS: Record<string, PollAnalyticsData> = {
     },
     heatmap: generateHeatmap(),
   },
+}
+
+// ── Responses mock data ──
+
+const devices = ["Desktop", "Mobile", "Tablet"]
+const browsers = ["Chrome", "Safari", "Firefox", "Edge"]
+const oses = ["Windows", "macOS", "Android", "iOS", "Linux"]
+const locales = ["en-IN", "en-US", "en-GB", "de-DE"]
+const timezones = ["Asia/Kolkata", "America/New_York", "Europe/London", "Europe/Berlin"]
+const utmSources: (string | null)[] = ["twitter", "whatsapp", "email", "linkedin", null]
+const utmMediums: Record<string, string> = { twitter: "social", whatsapp: "chat", email: "email", linkedin: "social" }
+
+const feedbacks = [
+  "Great survey! Really well thought out.",
+  "Needs more options for the feature question.",
+  "Very relevant to what we need.",
+  "Too short. Would love deeper questions.",
+  "Perfect length and clear questions.",
+  null,
+  null,
+  null,
+]
+
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
+function generateMockResponses(): ResponseDetail[] {
+  const questions = MOCK_QUESTIONS["1"]
+  if (!questions) return []
+
+  return Array.from({ length: 24 }, (_, i) => {
+    const isAnon = Math.random() > 0.35
+    const source = pickRandom(utmSources)
+    const hoursAgo = i * 3 + Math.floor(Math.random() * 3)
+    const completed = Math.random() > 0.1
+    const rating = Math.random() > 0.2 ? Math.ceil(Math.random() * 5) : null
+
+    const answers = questions.map((q) => {
+      const skipped = q.isOptional && Math.random() > 0.7
+      const option = skipped
+        ? null
+        : pickRandom(q.options)
+
+      return {
+        questionId: q.id,
+        questionTitle: q.title,
+        questionOrder: q.order,
+        optionId: option?.id ?? null,
+        optionName: option?.name ?? null,
+      }
+    })
+
+    return {
+      id: `resp-${i + 1}`,
+      respondent: isAnon
+        ? "Anonymous"
+        : `user${i + 1}@example.com`,
+      rating,
+      feedback: pickRandom(feedbacks),
+      isCompleted: completed,
+      submittedAt: new Date(Date.now() - hoursAgo * 60 * 60 * 1000).toISOString(),
+      answers,
+      meta: {
+        deviceType: pickRandom(devices),
+        browser: pickRandom(browsers),
+        os: pickRandom(oses),
+        locale: pickRandom(locales),
+        timezone: pickRandom(timezones),
+        referrer: source ? `https://${source}.com` : null,
+        utmSource: source,
+        utmMedium: source ? utmMediums[source] ?? null : null,
+        screenResolution: pickRandom(["1920x1080", "1440x900", "390x844", "360x800"]),
+        timeSpentSeconds: 60 + Math.floor(Math.random() * 180),
+      },
+    }
+  })
+}
+
+export const MOCK_RESPONSES: Record<string, ResponseDetail[]> = {
+  "1": generateMockResponses(),
 }

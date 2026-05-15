@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator"
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard"
 import type { LucideIcon } from "lucide-react"
 import type { PollWithCounts } from "@/types"
+import { FRONTEND_URL } from "@/lib/constants"
 
 interface SharePollDialogProps {
   open: boolean
@@ -69,10 +70,10 @@ export function SharePollDialog({
 }: SharePollDialogProps) {
   const { copy, isCopied } = useCopyToClipboard()
 
-  const baseUrl = `${window.location.origin}/poll/${poll.slug}`
+  const baseUrl = `${FRONTEND_URL}/response/${poll.id}?slug=${poll.slug}`
 
   function utmUrl(platform: UtmPlatform) {
-    return `${baseUrl}?utm_source=${platform.source}&utm_medium=${platform.medium}`
+    return `${baseUrl}&utm_source=${platform.source}&utm_medium=${platform.medium}`
   }
 
   return (

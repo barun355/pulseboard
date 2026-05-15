@@ -4,10 +4,11 @@ export interface QuestionFormData {
   title: string
   description: string
   isOptional: boolean
-  options: { name: string }[]
+  options: { id?: string; name: string }[]
 }
 
 const optionSchema = Joi.object({
+  id: Joi.string().optional(),
   name: Joi.string().trim().min(1).max(200).required().messages({
     "string.empty": "Option name is required",
     "string.max": "Option name must be at most 200 characters",

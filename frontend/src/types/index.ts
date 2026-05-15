@@ -8,6 +8,7 @@ export interface Poll {
   status: PollStatus
   isPublic: boolean
   isAnonymousSubmissionAllowed: boolean
+  isAllowedToEditAfterResponse: boolean
   accessCode: string | null
   expiresAt: string
   createdAt: string
@@ -17,8 +18,8 @@ export interface Poll {
 
 export interface PollWithCounts extends Poll {
   _count: {
-    submission: number
-    question: number
+    submissions: number
+    questions: number
   }
 }
 
@@ -160,4 +161,38 @@ export interface LiveQuestionState {
 export interface LiveTrendPoint {
   time: string
   count: number
+}
+
+// ── Responses ──
+
+export interface SubmissionAnswerDetail {
+  questionId: string
+  questionTitle: string
+  questionOrder: number
+  optionId: string | null
+  optionName: string | null
+}
+
+export interface SubmissionMeta {
+  deviceType: string
+  browser: string
+  os: string
+  locale: string
+  timezone: string
+  referrer: string | null
+  utmSource: string | null
+  utmMedium: string | null
+  screenResolution: string | null
+  timeSpentSeconds: number
+}
+
+export interface ResponseDetail {
+  id: string
+  respondent: string
+  rating: number | null
+  feedback: string | null
+  isCompleted: boolean
+  submittedAt: string
+  answers: SubmissionAnswerDetail[]
+  meta: SubmissionMeta
 }

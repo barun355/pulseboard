@@ -23,14 +23,14 @@ export function formatDuration(seconds: number): string {
 }
 
 export function deriveOptionValues(
-  options: { name: string }[]
-): { name: string; value: string; order: number }[] {
+  options: { id?: string; name: string }[]
+): { id?: string; name: string; value: string; order: number }[] {
   const seen = new Map<string, number>()
   return options.map((opt, i) => {
     let value = slugify(opt.name) || `option-${i + 1}`
     const count = seen.get(value) ?? 0
     seen.set(value, count + 1)
     if (count > 0) value = `${value}-${count + 1}`
-    return { name: opt.name, value, order: i + 1 }
+    return { ...(opt.id ? { id: opt.id } : {}), name: opt.name, value, order: i + 1 }
   })
 }

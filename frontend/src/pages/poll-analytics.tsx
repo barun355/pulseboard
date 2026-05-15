@@ -1,17 +1,29 @@
-import { useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
 import {
   ArrowLeft,
   CheckCircle2,
   Clock,
+  FileSpreadsheet,
   HelpCircle,
-  Loader2,
   MessageSquare,
+  Share2,
   Star,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyContent,
+} from "@/components/ui/empty"
 import { PollStatusBadge } from "@/components/poll/poll-status-badge"
 import { StatCard } from "@/components/analytics/stat-card"
+import { StatCardSkeleton } from "@/components/skeletons/stat-card-skeleton"
+import { ChartCardSkeleton, PieChartSkeleton } from "@/components/skeletons/chart-card-skeleton"
 import { ResponseTrendChart } from "@/components/analytics/response-trend-chart"
 import { QuestionBreakdownCard } from "@/components/analytics/question-breakdown-card"
 import { AudiencePieChart } from "@/components/analytics/audience-pie-chart"
@@ -19,61 +31,114 @@ import { SourceBarChart } from "@/components/analytics/source-bar-chart"
 import { RatingDistributionChart } from "@/components/analytics/rating-distribution-chart"
 import { FeedbackList } from "@/components/analytics/feedback-list"
 import { ResponseHeatmap } from "@/components/analytics/response-heatmap"
-import { MOCK_POLLS, MOCK_ANALYTICS } from "@/lib/mock-data"
 import { formatDuration } from "@/lib/utils"
-import type { PollWithCounts, PollAnalyticsData } from "@/types"
+import { pollQueries } from "@/queries/poll.queries"
+import { analyticsQueries } from "@/queries/analytics.queries"
 
 export function PollAnalytics() {
   const { pollId } = useParams<{ pollId: string }>()
   const navigate = useNavigate()
 
-  const [poll, setPoll] = useState<PollWithCounts | null>(null)
-  const [analytics, setAnalytics] = useState<PollAnalyticsData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { data: poll, isLoading: pollLoading } = useQuery(pollQueries.detail(pollId!))
+  const { data: analytics, isLoading: analyticsLoading } = useQuery(analyticsQueries.poll(pollId!))
 
-  useEffect(() => {
-    // TODO: Replace with API call
-    const found = MOCK_POLLS.find((p) => p.id === pollId) ?? null
-    setPoll(found)
-    setAnalytics(MOCK_ANALYTICS[pollId!] ?? null)
-    setLoading(false)
-  }, [pollId])
+  const isLoading = pollLoading || analyticsLoading
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      <div className="mx-auto max-w-5xl space-y-6">
+        {/* Header */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-7 w-52" />
+              <Skeleton className="h-5 w-16 rounded-full" />
+            </div>
+            <Skeleton className="h-4 w-32" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-8 w-28 rounded-md" />
+            <Skeleton className="h-8 w-28 rounded-md" />
+          </div>
+        </div>
+        {/* Row 1: Stat Cards */}
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+        {/* Row 2: Trend Chart */}
+        <ChartCardSkeleton height={300} />
+        {/* Row 3: Question Breakdown */}
+        <ChartCardSkeleton height={220} />
+        {/* Row 4: Audience Pie Charts */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <PieChartSkeleton />
+          <PieChartSkeleton />
+          <PieChartSkeleton />
+          <PieChartSkeleton />
+        </div>
+        {/* Row 5: Heatmap + Source */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <ChartCardSkeleton height={200} />
+          <ChartCardSkeleton height={200} />
+        </div>
+        {/* Row 6: Rating + Feedback */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <ChartCardSkeleton height={220} />
+          <ChartCardSkeleton height={220} />
+        </div>
       </div>
     )
   }
 
   if (!poll) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 py-20 text-center">
-        <HelpCircle className="mx-auto size-10 text-muted-foreground/50" />
-        <p className="font-heading text-lg font-medium">Poll not found</p>
-        <Button variant="outline" onClick={() => navigate("/")}>
-          Back to Dashboard
-        </Button>
-      </div>
+      <Empty className="mx-auto max-w-3xl py-20">
+        <EmptyHeader>
+          <EmptyMedia>
+            <HelpCircle className="size-10 text-muted-foreground/50" />
+          </EmptyMedia>
+          <EmptyTitle>Poll not found</EmptyTitle>
+          <EmptyDescription>
+            This poll may have been deleted or the link is incorrect.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button variant="outline" onClick={() => navigate("/")}>
+            Back to Dashboard
+          </Button>
+        </EmptyContent>
+      </Empty>
     )
   }
 
   if (!analytics) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 py-20 text-center">
-        <MessageSquare className="mx-auto size-10 text-muted-foreground/50" />
-        <p className="font-heading text-lg font-medium">No analytics data</p>
-        <p className="text-sm text-muted-foreground">
-          This poll has no responses yet.
-        </p>
-        <Button
-          variant="outline"
-          onClick={() => navigate(`/polls/${pollId}`)}
-        >
-          Back to Poll
-        </Button>
-      </div>
+      <Empty className="mx-auto max-w-3xl py-20">
+        <EmptyHeader>
+          <EmptyMedia>
+            <MessageSquare className="size-10 text-muted-foreground/50" />
+          </EmptyMedia>
+          <EmptyTitle>
+            "You can't improve what you don't measure."
+          </EmptyTitle>
+          <EmptyDescription>
+            Share your poll and start collecting responses. Analytics will appear here
+            the moment your first response arrives.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button
+            variant="outline"
+            onClick={() => navigate(`/polls/${pollId}`)}
+          >
+            <Share2 className="size-3.5" />
+            Go Share Your Poll
+          </Button>
+        </EmptyContent>
+      </Empty>
     )
   }
 
@@ -95,14 +160,24 @@ export function PollAnalytics() {
             {overview.totalResponses} total responses
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate(`/polls/${pollId}`)}
-        >
-          <ArrowLeft className="size-3.5" />
-          Back to Poll
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/polls/${pollId}/responses`)}
+          >
+            <FileSpreadsheet className="size-3.5" />
+            Responses
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/polls/${pollId}`)}
+          >
+            <ArrowLeft className="size-3.5" />
+            Back to Poll
+          </Button>
+        </div>
       </div>
 
       {/* Row 1: Overview Stat Cards */}

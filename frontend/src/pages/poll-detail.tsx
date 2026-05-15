@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { format, formatDistanceToNow } from "date-fns"
+import { useQuery } from "@tanstack/react-query"
+import { toast } from "sonner"
 import {
-  Loader2,
   Pencil,
   Share2,
   BarChart3,
@@ -13,57 +14,129 @@ import {
   Globe,
   Lock,
   Circle,
+  FileSpreadsheet,
+  Loader2,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyContent,
+} from "@/components/ui/empty"
 import { StatCard } from "@/components/analytics/stat-card"
+import { StatCardSkeleton } from "@/components/skeletons/stat-card-skeleton"
 import { PollStatusBadge } from "@/components/poll/poll-status-badge"
 import { SharePollDialog } from "@/components/poll/share-poll-dialog"
-import { MOCK_POLLS, MOCK_QUESTIONS } from "@/lib/mock-data"
-import type { PollWithCounts, QuestionWithOptions } from "@/types"
+import { pollQueries } from "@/queries/poll.queries"
+import { useUpdatePollStatus } from "@/mutations/poll.mutations"
 
 export function PollDetail() {
   const { pollId } = useParams<{ pollId: string }>()
   const navigate = useNavigate()
-
-  const [poll, setPoll] = useState<PollWithCounts | null>(null)
-  const [questions, setQuestions] = useState<QuestionWithOptions[]>([])
-  const [loading, setLoading] = useState(true)
   const [shareOpen, setShareOpen] = useState(false)
 
-  useEffect(() => {
-    // TODO: Replace with API call
-    const found = MOCK_POLLS.find((p) => p.id === pollId) ?? null
-    setPoll(found)
-    setQuestions((MOCK_QUESTIONS[pollId!] ?? []).sort((a, b) => a.order - b.order))
-    setLoading(false)
-  }, [pollId])
+  const { data: poll, isLoading, error } = useQuery(pollQueries.detail(pollId!))
+  const updatePollStatusMutation = useUpdatePollStatus()
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      <div className="mx-auto max-w-3xl space-y-6">
+        {/* Header */}
+        <div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-7 w-56" />
+            <Skeleton className="h-5 w-16 rounded-full" />
+          </div>
+          <Skeleton className="mt-2 h-4 w-72" />
+        </div>
+        {/* Info Card */}
+        <Card className="shadow-ambient">
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="space-y-1.5">
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              ))}
+            </div>
+            <Separator />
+            <div className="flex flex-wrap items-center gap-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-8 w-24 rounded-md" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        {/* Stat Cards */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+        {/* Questions Card */}
+        <Card className="shadow-ambient">
+          <CardHeader>
+            <Skeleton className="h-5 w-28" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                {i > 0 && <Separator className="mb-4" />}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2 flex-1">
+                    <Skeleton className="mt-0.5 h-4 w-5" />
+                    <Skeleton className="h-4 w-3/4" />
+                  </div>
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                </div>
+                <div className="flex gap-3 pl-5">
+                  <Skeleton className="h-3.5 w-16" />
+                  <Skeleton className="h-3.5 w-20" />
+                  <Skeleton className="h-3.5 w-14" />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
-  if (!poll) {
+  if (error || !poll) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 py-20 text-center">
-        <HelpCircle className="mx-auto size-10 text-muted-foreground/50" />
-        <p className="font-heading text-lg font-medium">Poll not found</p>
-        <Button variant="outline" onClick={() => navigate("/")}>
-          Back to Dashboard
-        </Button>
-      </div>
+      <Empty className="mx-auto max-w-3xl py-20">
+        <EmptyHeader>
+          <EmptyMedia>
+            <HelpCircle className="size-10 text-muted-foreground/50" />
+          </EmptyMedia>
+          <EmptyTitle>This poll doesn't exist</EmptyTitle>
+          <EmptyDescription>
+            It may have been deleted or the link might be incorrect.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button variant="outline" onClick={() => navigate("/")}>
+            Back to Dashboard
+          </Button>
+        </EmptyContent>
+      </Empty>
     )
   }
 
-  const canEdit = poll.status === "DRAFT" || poll.status === "ACTIVE"
-  const hasResponses = poll._count.submission > 0
-  const isLive = poll.status === "ACTIVE"
+  const questions = (poll.questions ?? []).sort((a, b) => a.order - b.order)
+  const questionCount = questions.length
+  const submissionCount = (poll as any)._count?.submissions ?? 0
+  const canEdit = poll.status === "DRAFT"
+  const hasResponses = submissionCount > 0
+  const isLive = poll.status === "PUBLISHED"
 
   const expiryDate = new Date(poll.expiresAt)
   const isExpired = expiryDate < new Date()
@@ -125,11 +198,11 @@ export function PollDetail() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Responses</p>
-              <p className="text-sm font-medium">{poll._count.submission}</p>
+              <p className="text-sm font-medium">{submissionCount}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Questions</p>
-              <p className="text-sm font-medium">{poll._count.question}</p>
+              <p className="text-sm font-medium">{questionCount}</p>
             </div>
           </div>
 
@@ -164,14 +237,44 @@ export function PollDetail() {
               <BarChart3 className="size-3.5" />
               View Analytics
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/polls/${poll.id}/responses`)}
+              disabled={!hasResponses}
+            >
+              <FileSpreadsheet className="size-3.5" />
+              View Responses
+            </Button>
             {isLive && (
-              <Button
-                size="sm"
-                onClick={() => navigate(`/polls/${poll.id}/live`)}
-              >
-                <Radio className="size-3.5" />
-                Go Live
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  onClick={() => navigate(`/polls/${poll.id}/live`)}
+                >
+                  <Radio className="size-3.5" />
+                  Go Live
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={updatePollStatusMutation.isPending}
+                  onClick={() =>
+                    updatePollStatusMutation.mutate(
+                      { pollId: poll.id, status: "DRAFT" },
+                      {
+                        onSuccess: () => toast.success("Poll unpublished"),
+                        onError: () => toast.error("Failed to unpublish poll"),
+                      },
+                    )
+                  }
+                >
+                  {updatePollStatusMutation.isPending ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : null}
+                  Unpublish
+                </Button>
+              </>
             )}
           </div>
         </CardContent>
@@ -181,12 +284,12 @@ export function PollDetail() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard
           title="Total Responses"
-          value={poll._count.submission}
+          value={submissionCount}
           icon={MessageSquare}
         />
         <StatCard
           title="Questions"
-          value={poll._count.question}
+          value={questionCount}
           icon={HelpCircle}
         />
         <StatCard

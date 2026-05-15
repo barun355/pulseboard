@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Plus_Jakarta_Sans, Inter } from "next/font/google";
 import "./globals.css";
+import { CLERK_URLS } from "@/lib/constant";
 
 const plusJakarta = Plus_Jakarta_Sans({
   variable: "--font-heading",
@@ -95,7 +96,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <ClerkProvider signInFallbackRedirectUrl={CLERK_URLS.afterSignInUrl} signUpFallbackRedirectUrl={CLERK_URLS.afterSignUpUrl} afterSignOutUrl={CLERK_URLS.afterSignOutUrl}>
       <html
         lang="en"
         className={`${plusJakarta.variable} ${inter.variable} h-full`}
