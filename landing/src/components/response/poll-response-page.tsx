@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from "react"
-import { useSearchParams } from "next/navigation"
-import { useAuth } from "@clerk/nextjs"
-import { Loader2, AlertCircle } from "lucide-react"
+import { useSearchParams, usePathname } from "next/navigation"
+import { useAuth, SignInButton } from "@clerk/nextjs"
+import { Loader2, AlertCircle, LogIn } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { apiClient, ApiError } from "@/lib/api"
 import type { Poll, SubmitPayload } from "@/lib/types"
 import { AccessCodeGate } from "./access-code-gate"
@@ -15,10 +16,11 @@ type PageState =
   | { kind: "access-code"; error: string | null }
   | { kind: "form"; poll: Poll }
   | { kind: "submitted"; poll: Poll }
-  | { kind: "error"; message: string }
+  | { kind: "error"; message: string; needsLogin?: boolean }
 
 export function PollResponsePage({ pollId }: { pollId: string }) {
   const searchParams = useSearchParams()
+  const pathname = usePathname()
   const { getToken, isSignedIn } = useAuth()
 
   const [state, setState] = useState<PageState>({ kind: "loading" })
@@ -84,7 +86,11 @@ export function PollResponsePage({ pollId }: { pollId: string }) {
           err instanceof ApiError
             ? err.message
             : "Something went wrong. Please try again."
-        setState({ kind: "error", message })
+        const needsLogin =
+          err instanceof ApiError &&
+          err.status === 401 &&
+          /login/i.test(err.message)
+        setState({ kind: "error", message, needsLogin })
       }
     },
     [pollId, searchParams, getToken, isSignedIn],
@@ -168,6 +174,10 @@ export function PollResponsePage({ pollId }: { pollId: string }) {
   }
 
   if (state.kind === "error") {
+    const currentUrl = searchParams.toString()
+      ? `${pathname}?${searchParams.toString()}`
+      : pathname
+
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="w-full max-w-sm text-center">
@@ -175,9 +185,17 @@ export function PollResponsePage({ pollId }: { pollId: string }) {
             <AlertCircle className="size-6 text-destructive" />
           </div>
           <p className="font-heading text-lg font-semibold mb-1">
-            Unable to load poll
+            {state.needsLogin ? "Sign in required" : "Unable to load poll"}
           </p>
           <p className="text-sm text-muted-foreground">{state.message}</p>
+          {state.needsLogin && (
+            <SignInButton forceRedirectUrl={currentUrl}>
+              <Button className="mt-6">
+                <LogIn className="size-4" />
+                Sign in to continue
+              </Button>
+            </SignInButton>
+          )}
         </div>
       </div>
     )
