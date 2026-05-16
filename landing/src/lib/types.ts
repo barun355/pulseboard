@@ -23,8 +23,29 @@ export interface Poll {
   isPublic: boolean
   isAnonymousSubmissionAllowed: boolean
   isAllowedToEditAfterResponse: boolean
+  isPublicResponseAnalyticsAllowed: boolean
   expiresAt: string
   questions: Question[]
+}
+
+export interface PublicAnalyticsOption {
+  optionId: string
+  name: string
+  count: number
+  pct: number
+}
+
+export interface PublicAnalyticsQuestion {
+  questionId: string
+  title: string
+  totalResponses: number
+  skipCount: number
+  options: PublicAnalyticsOption[]
+}
+
+export interface PublicAnalytics {
+  overview: { totalResponses: number; completionRate: number }
+  questions: PublicAnalyticsQuestion[]
 }
 
 export interface SubmitPayload {

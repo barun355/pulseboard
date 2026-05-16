@@ -16,6 +16,7 @@ import {
   Circle,
   FileSpreadsheet,
   Loader2,
+  XCircle,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -34,6 +35,15 @@ import { StatCard } from "@/components/analytics/stat-card"
 import { StatCardSkeleton } from "@/components/skeletons/stat-card-skeleton"
 import { PollStatusBadge } from "@/components/poll/poll-status-badge"
 import { SharePollDialog } from "@/components/poll/share-poll-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog"
 import { pollQueries } from "@/queries/poll.queries"
 import { useUpdatePollStatus } from "@/mutations/poll.mutations"
 
@@ -41,6 +51,7 @@ export function PollDetail() {
   const { pollId } = useParams<{ pollId: string }>()
   const navigate = useNavigate()
   const [shareOpen, setShareOpen] = useState(false)
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false)
 
   const { data: poll, isLoading, error } = useQuery(pollQueries.detail(pollId!))
   const updatePollStatusMutation = useUpdatePollStatus()
@@ -137,6 +148,7 @@ export function PollDetail() {
   const canEdit = poll.status === "DRAFT"
   const hasResponses = submissionCount > 0
   const isLive = poll.status === "PUBLISHED"
+  const canClose = poll.status === "PUBLISHED" || poll.status === "ACTIVE"
 
   const expiryDate = new Date(poll.expiresAt)
   const isExpired = expiryDate < new Date()
@@ -276,6 +288,16 @@ export function PollDetail() {
                 </Button>
               </>
             )}
+            {canClose && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setCloseConfirmOpen(true)}
+              >
+                <XCircle className="size-3.5" />
+                Close Poll
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -366,6 +388,45 @@ export function PollDetail() {
         onOpenChange={setShareOpen}
         poll={poll}
       />
+
+      {/* Close Poll Confirmation Dialog */}
+      <Dialog open={closeConfirmOpen} onOpenChange={setCloseConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Close this poll?</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. Once closed, no new responses will be
+              accepted and the poll status cannot be changed back.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button
+              variant="destructive"
+              disabled={updatePollStatusMutation.isPending}
+              onClick={() =>
+                updatePollStatusMutation.mutate(
+                  { pollId: poll.id, status: "CLOSED" },
+                  {
+                    onSuccess: () => {
+                      toast.success("Poll closed")
+                      setCloseConfirmOpen(false)
+                    },
+                    onError: () => toast.error("Failed to close poll"),
+                  },
+                )
+              }
+            >
+              {updatePollStatusMutation.isPending && (
+                <Loader2 className="size-3.5 animate-spin" />
+              )}
+              Close Poll
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

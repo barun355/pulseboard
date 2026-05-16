@@ -12,6 +12,7 @@ class PollDto extends BaseDto {
         accessCode: Joi.string().optional().min(4).max(20),
         createdById: Joi.string().required(),
         isAllowedToEditAfterSubmission: Joi.boolean().optional(),
+        isPublicResponseAnalyticsAllowed: Joi.boolean().optional(),
     })
 }
 

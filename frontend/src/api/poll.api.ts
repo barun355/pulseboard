@@ -17,6 +17,7 @@ export interface CreatePollPayload {
   expiresAt: string
   isAnonymousSubmissionAllowed: boolean
   isAllowedToEditAfterResponse: boolean
+  isPublicResponseAnalyticsAllowed: boolean
   accessCode?: string
   createdById: string
 }

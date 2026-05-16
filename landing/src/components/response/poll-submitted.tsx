@@ -2,16 +2,19 @@
 
 import { CheckCircle2, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { PublicAnalyticsView } from "./public-analytics-view"
 
 interface PollSubmittedProps {
   canEdit?: boolean
   onEdit?: () => void
+  pollId: string
+  showAnalytics: boolean
 }
 
-export function PollSubmitted({ canEdit, onEdit }: PollSubmittedProps) {
+export function PollSubmitted({ canEdit, onEdit, pollId, showAnalytics }: PollSubmittedProps) {
   return (
-    <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="w-full max-w-sm text-center">
+    <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
+      <div className="w-full max-w-lg text-center">
         <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-green-500/10">
           <CheckCircle2 className="size-8 text-green-600" />
         </div>
@@ -32,6 +35,12 @@ export function PollSubmitted({ canEdit, onEdit }: PollSubmittedProps) {
           </Button>
         )}
       </div>
+
+      {showAnalytics && (
+        <div className="mt-10 w-full border-t border-border pt-8">
+          <PublicAnalyticsView pollId={pollId} />
+        </div>
+      )}
     </div>
   )
 }

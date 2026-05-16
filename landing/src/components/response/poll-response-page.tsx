@@ -198,6 +198,8 @@ export function PollResponsePage({ pollId }: { pollId: string }) {
       <PollSubmitted
         canEdit={state.poll.isAllowedToEditAfterResponse}
         onEdit={handleEditResponse}
+        pollId={pollId}
+        showAnalytics={state.poll.isPublicResponseAnalyticsAllowed}
       />
     )
   }

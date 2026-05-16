@@ -92,6 +92,96 @@ export async function getPollForSubmission(req: Request, res: Response) {
   return ApiResponse.ok(res, "Poll found", existingPoll);
 }
 
+export async function getPublicPollAnalytics(req: Request, res: Response) {
+  const { pollId } = req.params;
+
+  if (!pollId) {
+    throw ApiError.badRequest("Poll ID is required");
+  }
+
+  const poll = await prisma.poll.findUnique({
+    where: {
+      id: pollId as string,
+      isDeleted: false,
+    },
+    include: {
+      questions: {
+        where: { isDeleted: false },
+        orderBy: { order: "asc" },
+        include: {
+          options: {
+            where: { isDeleted: false },
+            orderBy: { order: "asc" },
+            include: {
+              _count: { select: { submissionAnswers: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!poll) {
+    throw ApiError.notFound("Poll not found");
+  }
+
+  if (!poll.isPublicResponseAnalyticsAllowed) {
+    throw ApiError.forbidden("Public analytics are not enabled for this poll");
+  }
+
+  if (poll.status !== "PUBLISHED" && poll.status !== "CLOSED") {
+    throw ApiError.forbidden("Analytics are not available for this poll");
+  }
+
+  const submissions = await prisma.submission.findMany({
+    where: { pollId: pollId as string },
+    select: {
+      id: true,
+      isCompleted: true,
+      submissionAnswers: { select: { questionId: true } },
+    },
+  });
+
+  const total = submissions.length;
+  const completed = submissions.filter((s) => s.isCompleted).length;
+  const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  const overview = { totalResponses: total, completionRate };
+
+  const answeredSets = submissions.map(
+    (s) => new Set(s.submissionAnswers.map((a) => a.questionId)),
+  );
+
+  const questions = poll.questions.map((q) => {
+    const totalResponses = q.options.reduce(
+      (sum, o) => sum + o._count.submissionAnswers,
+      0,
+    );
+    const skipCount = submissions.filter((_, i) => !answeredSets[i]?.has(q.id)).length;
+
+    return {
+      questionId: q.id,
+      title: q.title,
+      totalResponses,
+      skipCount,
+      options: q.options.map((o) => ({
+        optionId: o.id,
+        name: o.name,
+        count: o._count.submissionAnswers,
+        pct:
+          totalResponses > 0
+            ? Math.round((o._count.submissionAnswers / totalResponses) * 100)
+            : 0,
+      })),
+    };
+  });
+
+  return ApiResponse.ok(res, "Public analytics fetched successfully", {
+    overview,
+    questions,
+  });
+}
+
 // socket connection for real-time updates of the poll response
 export async function submitResponse(req: Request, res: Response) {
   // Destructure the userId (who submitted the response), pollId, questionId and the selected option from the request body

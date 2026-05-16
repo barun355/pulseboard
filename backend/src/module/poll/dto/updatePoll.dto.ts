@@ -12,5 +12,6 @@ export class UpdatePollDto extends BaseDto {
         isAnonymousSubmission: Joi.boolean().optional(),
         accessCode: Joi.string().optional(),
         isAllowedToEditAfterSubmission: Joi.boolean().optional(),
+        isPublicResponseAnalyticsAllowed: Joi.boolean().optional(),
     })
 }

@@ -16,7 +16,8 @@ export async function createPoll(req: Request, res: Response) {
       isAnonymousSubmissionAllowed,
       accessCode,
       createdById,
-      isAllowedToEditAfterSubmission
+      isAllowedToEditAfterSubmission,
+      isPublicResponseAnalyticsAllowed,
     } = req.body;
 
     const auth = getAuth(req);
@@ -40,7 +41,8 @@ export async function createPoll(req: Request, res: Response) {
         accessCode: !isPublic ? accessCode : null,
         expiresAt: new Date(expiresAt),
         createdById: createdById, // replace it with `auth.userId`,
-        isAllowedToEditAfterSubmission
+        isAllowedToEditAfterSubmission,
+        isPublicResponseAnalyticsAllowed: isPublicResponseAnalyticsAllowed ?? false,
       },
     });
 
@@ -71,7 +73,8 @@ export async function updatePoll(req: Request, res: Response) {
       expiresAt,
       isAnonymousSubmissionAllowed,
       accessCode,
-      isAllowedToEditAfterSubmission
+      isAllowedToEditAfterSubmission,
+      isPublicResponseAnalyticsAllowed,
     } = req.body;
 
     if (!pollId) {
@@ -111,7 +114,8 @@ export async function updatePoll(req: Request, res: Response) {
         isAnonymousSubmissionAllowed,
         accessCode: !isPublic ? accessCode : null,
         expiresAt: new Date(expiresAt),
-        isAllowedToEditAfterSubmission
+        isAllowedToEditAfterSubmission,
+        isPublicResponseAnalyticsAllowed,
       },
     });
 

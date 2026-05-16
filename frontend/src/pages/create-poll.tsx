@@ -53,6 +53,7 @@ const DEFAULT_VALUES: CreatePollFormData = {
   isPublic: true,
   isAnonymousSubmissionAllowed: true,
   isAllowedToEditAfterResponse: false,
+  isPublicResponseAnalyticsAllowed: false,
   accessCode: "",
 }
 
@@ -119,6 +120,7 @@ export function CreatePoll() {
         isPublic: data.isPublic,
         isAnonymousSubmissionAllowed: data.isAnonymousSubmissionAllowed,
         isAllowedToEditAfterResponse: data.isAllowedToEditAfterResponse,
+        isPublicResponseAnalyticsAllowed: data.isPublicResponseAnalyticsAllowed,
         createdById: user?.id ?? "",
         ...(data.isPublic ? {} : { accessCode: data.accessCode }),
       },
@@ -448,6 +450,31 @@ export function CreatePoll() {
                     </div>
                     <Switch
                       id="isAllowedToEditAfterResponse"
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </Field>
+                )}
+              />
+
+              {/* isPublicResponseAnalyticsAllowed Toggle */}
+              <Controller
+                name="isPublicResponseAnalyticsAllowed"
+                control={control}
+                render={({ field }) => (
+                  <Field orientation="horizontal">
+                    <div className="flex flex-1 flex-col gap-0.5">
+                      <FieldLabel htmlFor="isPublicResponseAnalyticsAllowed">
+                        Show Results to Respondents
+                      </FieldLabel>
+                      <FieldDescription>
+                        {field.value
+                          ? "Respondents can see poll results after submitting."
+                          : "Only you can view poll analytics."}
+                      </FieldDescription>
+                    </div>
+                    <Switch
+                      id="isPublicResponseAnalyticsAllowed"
                       checked={field.value}
                       onCheckedChange={field.onChange}
                     />

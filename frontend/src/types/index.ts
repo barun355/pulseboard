@@ -9,6 +9,7 @@ export interface Poll {
   isPublic: boolean
   isAnonymousSubmissionAllowed: boolean
   isAllowedToEditAfterResponse: boolean
+  isPublicResponseAnalyticsAllowed: boolean
   accessCode: string | null
   expiresAt: string
   createdAt: string
